@@ -1,0 +1,127 @@
+# ============================================================
+# C++ Renderer Project (.gitignore)
+# Windows + MSVC + CMake + VS Code (+ optional vcpkg)
+# ============================================================
+
+# --- Build output (CMake) ---
+build/
+build-*/
+out/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+install_manifest.txt
+
+# If you generate compile_commands.json for tooling
+compile_commands.json
+
+# --- Ninja / Make ---
+.ninja_deps
+.ninja_log
+.ninja_cache/
+Makefile
+
+# --- Visual Studio / MSBuild ---
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.VC.VC.opendb
+*.VC.db-shm
+*.VC.db-wal
+
+# MSBuild outputs
+Debug/
+Release/
+RelWithDebInfo/
+MinSizeRel/
+x64/
+x86/
+Win32/
+ipch/
+*.pdb
+*.idb
+*.ilk
+*.obj
+*.pch
+*.tlog
+*.log
+*.tmp
+*.exp
+*.lib
+*.dll
+*.exe
+*.iobj
+*.ipdb
+
+# Visual Studio generated project files (if using VS generator)
+*.sln
+*.vcxproj*
+*.filters
+*.props
+*.targets
+*.dir
+*.vcproj
+
+# --- VS Code ---
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/extensions.json
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- Crash dumps ---
+*.dmp
+*.stackdump
+
+# --- CLion / JetBrains ---
+.idea/
+*.iml
+
+# --- Python / tooling caches (if you have scripts) ---
+__pycache__/
+*.pyc
+
+# --- ImGui / shader cache / runtime caches (optional, common) ---
+imgui.ini
+*.cache
+.cache/
+shader_cache/
+pipeline_cache/
+
+# --- Logs ---
+logs/
+*.log
+
+# --- Assets build outputs (keep raw assets in repo, ignore generated) ---
+# Example: baked IBL cubemaps, intermediate textures, etc.
+generated/
+baked/
+intermediate/
+
+# ============================================================
+# vcpkg (optional)
+# ============================================================
+# If vcpkg is installed globally, nothing needed.
+# If you vendor vcpkg into the repo, DO NOT ignore the whole folder
+# unless you intentionally don't want it in git.
+#
+# Typical: keep vcpkg as a submodule; ignore its build/download artifacts.
+vcpkg_installed/
+vcpkg/buildtrees/
+vcpkg/packages/
+vcpkg/downloads/
+vcpkg/vcpkgUserTargets.cmake
+
+# If you use vcpkg binary caching locally
+.vcpkg/
