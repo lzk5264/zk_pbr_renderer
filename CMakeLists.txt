@@ -5,6 +5,11 @@ project(zk_pbr_renderer)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Windows平台设置UTF-8编码
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 # 添加include目录
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/third_party)
@@ -15,12 +20,16 @@ link_directories(${CMAKE_SOURCE_DIR}/lib)
 # 显式列出源文件（比GLOB更可靠）
 set(SOURCES
     ${CMAKE_SOURCE_DIR}/src/main.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/window.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/shader.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/mesh.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/vertex_layout.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/texture.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/texture2d.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/texture_cubemap.cpp
+    ${CMAKE_SOURCE_DIR}/src/gfx/camera.cpp
+    ${CMAKE_SOURCE_DIR}/src/gfx/camera_controller.cpp
+    ${CMAKE_SOURCE_DIR}/src/gfx/geometry_utils.cpp
     ${CMAKE_SOURCE_DIR}/src/glad.c
 )
 
