@@ -18,6 +18,9 @@ set(SOURCES
     ${CMAKE_SOURCE_DIR}/src/gfx/shader.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/mesh.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/vertex_layout.cpp
+    ${CMAKE_SOURCE_DIR}/src/gfx/texture.cpp
+    ${CMAKE_SOURCE_DIR}/src/gfx/texture2d.cpp
+    ${CMAKE_SOURCE_DIR}/src/gfx/texture_cubemap.cpp
     ${CMAKE_SOURCE_DIR}/src/glad.c
 )
 
@@ -36,6 +39,14 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         ${CMAKE_SOURCE_DIR}/shaders
         $<TARGET_FILE_DIR:${PROJECT_NAME}>/shaders
     COMMENT "Copying shaders to build directory..."
+)
+
+# 复制resources目录到构建输出目录
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/resources
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>/resources
+    COMMENT "Copying resources to build directory..."
 )
 
 # Windows特定设置

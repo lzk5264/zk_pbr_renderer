@@ -1,8 +1,11 @@
-#version 460
+#version 460 core
 
-layout (location = 0) out vec4 FragColor;
+
+// ===== Fragment Outputs =====
+layout(location = 0) out vec4 o_Color;
+
 
 void main()
 {
-    FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+    o_Color = vec4(1.0f);
 }

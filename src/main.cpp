@@ -7,6 +7,7 @@
 
 #include <zk_pbr/gfx/shader.h>
 #include <zk_pbr/gfx/mesh.h>
+#include <zk_pbr/gfx/texture2d.h>
 
 constexpr unsigned int kScrWidth = 800;
 constexpr unsigned int kScrHeight = 600;
@@ -50,6 +51,7 @@ int main()
     }
 
     zk_pbr::gfx::Shader shader("./shaders/common/default_screen_space_vs.vert", "./shaders/common/default_screen_space_fs.frag");
+    zk_pbr::gfx::Shader debug_tex_shader("./shaders/common/debug_tex_vs.vert", "./shaders/common/debug_tex_fs.frag");
 
     // 使用新的 Mesh 封装 - 方式1：使用 PrimitiveFactory
     auto triangle = zk_pbr::gfx::PrimitiveFactory::CreateTriangle();
@@ -61,6 +63,37 @@ int main()
     //     0.0f, 0.5f, 0.0f};
     // auto triangle = zk_pbr::gfx::Mesh(vertices, 3, zk_pbr::gfx::layouts::Position3D());
 
+    float vertices_tex[] = {
+        // 位置              // 纹理坐标
+        -0.5f, -0.5f, 0.0f, 0.0f, 0.0f,
+        0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
+        -0.5f, 0.5f, 0.0f, 0.0f, 1.0f};
+
+    unsigned int indices[] = {0, 1, 2, 2, 3, 0};
+
+    auto quad = zk_pbr::gfx::Mesh(
+        vertices_tex, 4,
+        indices, 6,
+        zk_pbr::gfx::layouts::Position3DTexCoord2D());
+
+    // 加载纹理，添加异常处理
+    zk_pbr::gfx::Texture2D diffuse;
+    try
+    {
+        diffuse = zk_pbr::gfx::Texture2D::LoadFromFile(
+            "./resources/textures/awesomeface.png",
+            zk_pbr::gfx::texture_presets::Diffuse());
+    }
+    catch (const zk_pbr::gfx::TextureException &e)
+    {
+        std::cerr << "Failed to load texture: " << e.what() << std::endl;
+        glfwTerminate();
+        return -1;
+    }
+
+    diffuse.Bind(0);
+
     // render loop
     while (!glfwWindowShouldClose(window))
     {
@@ -70,6 +103,10 @@ int main()
 
         shader.Use();
         triangle.Draw(); // 使用 Mesh 的 Draw 方法
+
+        debug_tex_shader.Use();
+        debug_tex_shader.SetInt("u_tex", 0);
+        quad.Draw();
 
         // double buffer
         glfwSwapBuffers(window);
