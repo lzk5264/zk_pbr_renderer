@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 
 #include <zk_pbr/gfx/shader.h>
+#include <zk_pbr/gfx/mesh.h>
 
 constexpr unsigned int kScrWidth = 800;
 constexpr unsigned int kScrHeight = 600;
@@ -50,24 +51,15 @@ int main()
 
     zk_pbr::gfx::Shader shader("./shaders/common/default_screen_space_vs.vert", "./shaders/common/default_screen_space_fs.frag");
 
-    float vertices[] = {
-        -0.5f, -0.5f, 0.0f,
-        0.5f, -0.5f, 0.0f,
-        0.0f, 0.5f, 0.0f};
+    // 使用新的 Mesh 封装 - 方式1：使用 PrimitiveFactory
+    auto triangle = zk_pbr::gfx::PrimitiveFactory::CreateTriangle();
 
-    unsigned int VAO;
-    glGenVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
-
-    unsigned int VBO;
-    glGenBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
-    glEnableVertexAttribArray(0);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
+    // 或者方式2：手动创建 Mesh（展示灵活性）
+    // float vertices[] = {
+    //     -0.5f, -0.5f, 0.0f,
+    //     0.5f, -0.5f, 0.0f,
+    //     0.0f, 0.5f, 0.0f};
+    // auto triangle = zk_pbr::gfx::Mesh(vertices, 3, zk_pbr::gfx::layouts::Position3D());
 
     // render loop
     while (!glfwWindowShouldClose(window))
@@ -76,19 +68,15 @@ int main()
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glBindVertexArray(VAO);
-
         shader.Use();
-        glDrawArrays(GL_TRIANGLES, 0, 3);
-        glBindVertexArray(0);
+        triangle.Draw(); // 使用 Mesh 的 Draw 方法
 
         // double buffer
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
+    // Mesh 会在析构时自动清理 VAO/VBO/EBO
     glfwTerminate();
     return 0;
 }

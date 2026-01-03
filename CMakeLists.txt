@@ -16,6 +16,8 @@ link_directories(${CMAKE_SOURCE_DIR}/lib)
 set(SOURCES
     ${CMAKE_SOURCE_DIR}/src/main.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/shader.cpp
+    ${CMAKE_SOURCE_DIR}/src/gfx/mesh.cpp
+    ${CMAKE_SOURCE_DIR}/src/gfx/vertex_layout.cpp
     ${CMAKE_SOURCE_DIR}/src/glad.c
 )
 
