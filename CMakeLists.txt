@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 添加include目录
 include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/third_party)
 
 # 添加库目录
 link_directories(${CMAKE_SOURCE_DIR}/lib)
@@ -14,6 +15,7 @@ link_directories(${CMAKE_SOURCE_DIR}/lib)
 # 显式列出源文件（比GLOB更可靠）
 set(SOURCES
     ${CMAKE_SOURCE_DIR}/src/main.cpp
+    ${CMAKE_SOURCE_DIR}/src/gfx/shader.cpp
     ${CMAKE_SOURCE_DIR}/src/glad.c
 )
 
@@ -24,6 +26,14 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 target_link_libraries(${PROJECT_NAME}
     glfw3
     opengl32  # Windows OpenGL库
+)
+
+# 复制shaders目录到构建输出目录
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/shaders
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>/shaders
+    COMMENT "Copying shaders to build directory..."
 )
 
 # Windows特定设置
