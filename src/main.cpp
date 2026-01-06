@@ -5,8 +5,10 @@
 #include <zk_pbr/gfx/shader.h>
 #include <zk_pbr/gfx/mesh.h>
 #include <zk_pbr/gfx/texture2d.h>
+#include <zk_pbr/gfx/texture_cubemap.h>
 #include <zk_pbr/gfx/camera.h>
 #include <zk_pbr/gfx/camera_controller.h>
+#include <zk_pbr/gfx/uniform_buffer.h>
 
 // 全局相机控制器指针（用于鼠标滚轮回调）
 zk_pbr::gfx::ICameraController *g_camera_controller = nullptr;
@@ -71,8 +73,29 @@ int main()
             "./shaders/common/debug_tex_vs.vert",
             "./shaders/common/debug_tex_fs.frag");
 
+        zk_pbr::gfx::Shader skybox_shader(
+            "./shaders/common/skybox_vs.vert",
+            "./shaders/common/skybox_fs.frag");
+
+        // auto diffuse = zk_pbr::gfx::Texture2D::LoadFromFile(
+        //     "./resources/textures/awesomeface.png",
+        //     zk_pbr::gfx::texture_presets::Diffuse());
+        // diffuse.Bind(0);
+
+        std::array<std::string, 6> faces = {
+            "./resources/textures/skybox/right.jpg",  // +X
+            "./resources/textures/skybox/left.jpg",   // -X
+            "./resources/textures/skybox/top.jpg",    // +Y
+            "./resources/textures/skybox/bottom.jpg", // -Y
+            "./resources/textures/skybox/front.jpg",  // +Z
+            "./resources/textures/skybox/back.jpg"    // -Z
+        };
+
+        auto skybox = zk_pbr::gfx::TextureCubemap::LoadFromFiles(faces);
+
         // 创建几何体
         auto triangle = zk_pbr::gfx::PrimitiveFactory::CreateTriangle();
+        auto cube = zk_pbr::gfx::PrimitiveFactory::CreateCube();
 
         float vertices_tex[] = {
             // 位置              // 纹理坐标
@@ -88,11 +111,16 @@ int main()
             indices, 6,
             zk_pbr::gfx::layouts::Position3DTexCoord2D());
 
-        // 加载纹理
-        auto diffuse = zk_pbr::gfx::Texture2D::LoadFromFile(
-            "./resources/textures/awesomeface.png",
-            zk_pbr::gfx::texture_presets::Diffuse());
-        diffuse.Bind(0);
+        struct CameraMatrices
+        {
+            glm::mat4 view;       // offset 0,  size 64, align 16 ✅
+            glm::mat4 projection; // offset 64, size 64, align 16 ✅
+        };
+        static_assert(sizeof(CameraMatrices) == 128, "Size check");
+        zk_pbr::gfx::UniformBuffer cameraUBO(sizeof(CameraMatrices), GL_DYNAMIC_DRAW);
+        cameraUBO.BindToPoint(0);
+        skybox_shader.Use();
+        skybox_shader.SetUniformBlock("CameraMatrices", 0);
 
         // 时间管理
         float delta_time = 0.0f;
@@ -120,6 +148,11 @@ int main()
             glm::mat4 view = camera.GetViewMatrix();
             glm::mat4 projection = camera.GetProjectionMatrix(window.GetAspectRatio());
 
+            CameraMatrices matrices;
+            matrices.view = view;
+            matrices.projection = projection;
+            cameraUBO.SetData(&matrices, sizeof(matrices));
+
             // 渲染三角形
             shader.Use();
             shader.SetMat4("view", view);
@@ -127,13 +160,20 @@ int main()
             shader.SetMat4("model", glm::mat4(1.0f));
             triangle.Draw();
 
-            // 渲染纹理四边形
-            debug_tex_shader.Use();
-            debug_tex_shader.SetInt("u_tex", 0);
-            debug_tex_shader.SetMat4("view", view);
-            debug_tex_shader.SetMat4("projection", projection);
-            debug_tex_shader.SetMat4("model", glm::mat4(1.0f));
-            quad.Draw();
+            // // 渲染纹理四边形
+            // debug_tex_shader.Use();
+            // debug_tex_shader.SetInt("u_tex", 0);
+            // debug_tex_shader.SetMat4("view", view);
+            // debug_tex_shader.SetMat4("projection", projection);
+            // debug_tex_shader.SetMat4("model", glm::mat4(1.0f));
+            // quad.Draw();
+
+            // skybox
+            glDepthFunc(GL_LEQUAL);
+            skybox_shader.Use();
+            skybox_shader.SetTextureCube("u_Cubemap", skybox.GetID(), 0);
+            cube.Draw();
+            glDepthFunc(GL_LESS);
 
             window.SwapBuffers();
             window.PollEvents();

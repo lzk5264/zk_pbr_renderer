@@ -30,6 +30,8 @@ set(SOURCES
     ${CMAKE_SOURCE_DIR}/src/gfx/camera.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/camera_controller.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/geometry_utils.cpp
+    ${CMAKE_SOURCE_DIR}/src/gfx/uniform_buffer.cpp
+    ${CMAKE_SOURCE_DIR}/src/gfx/framebuffer.cpp
     ${CMAKE_SOURCE_DIR}/src/glad.c
 )
 

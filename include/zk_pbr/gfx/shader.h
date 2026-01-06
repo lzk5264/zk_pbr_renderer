@@ -52,6 +52,28 @@ namespace zk_pbr::gfx
         void SetMat3(const std::string &name, const glm::mat3 &mat) const noexcept;
         void SetMat4(const std::string &name, const glm::mat4 &mat) const noexcept;
 
+        // Texture binding
+        // 绑定 2D 纹理到指定纹理单元
+        // @param name: sampler uniform 名称
+        // @param textureID: 纹理 ID
+        // @param unit: 纹理单元（0-31）
+        void SetTexture2D(const std::string &name, GLuint textureID, int unit) const noexcept;
+
+        // 绑定 Cubemap 纹理到指定纹理单元
+        void SetTextureCube(const std::string &name, GLuint textureID, int unit) const noexcept;
+
+        // 通用纹理绑定（默认 GL_TEXTURE_2D，保持向后兼容）
+        void SetTexture(const std::string &name, GLuint textureID, int unit) const noexcept;
+
+        // UBO (Uniform Buffer Object) binding
+        // 绑定 Uniform Block 到指定 binding point
+        // @param blockName: Uniform Block 名称
+        // @param bindingPoint: Binding point（0-based）
+        void SetUniformBlock(const std::string &blockName, GLuint bindingPoint) const noexcept;
+
+        // 获取 Uniform Block 索引
+        [[nodiscard]] GLuint GetUniformBlockIndex(const std::string &blockName) const noexcept;
+
     private:
         // 独占 Program 句柄（RAII）
         class UniqueProgram
@@ -89,6 +111,9 @@ namespace zk_pbr::gfx
 
         // Uniform location 缓存（mutable 允许在 const 函数中修改）
         mutable std::unordered_map<std::string, GLint> uniform_location_cache_;
+
+        // Uniform Block 索引缓存
+        mutable std::unordered_map<std::string, GLuint> uniform_block_index_cache_;
 
         // 获取 uniform location（带缓存）
         GLint GetUniformLocation(const std::string &name) const noexcept;

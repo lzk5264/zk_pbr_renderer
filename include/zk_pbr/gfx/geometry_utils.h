@@ -5,8 +5,9 @@
 namespace zk_pbr::gfx
 {
 
-    // 几何体生成工具
-    // 用于快速生成测试用的程序化网格
+    // 几何体生成工具（PBR 专用版本）
+    // 与 PrimitiveFactory 的区别：包含 tangent 数据用于法线贴图
+    // 如果不需要法线贴图，使用 PrimitiveFactory 更轻量
     namespace GeometryUtils
     {
 

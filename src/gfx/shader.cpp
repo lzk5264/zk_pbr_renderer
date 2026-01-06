@@ -272,4 +272,51 @@ namespace zk_pbr::gfx
         glUniformMatrix4fv(GetUniformLocation(name), 1, GL_FALSE, glm::value_ptr(mat));
     }
 
+    void Shader::SetTexture2D(const std::string &name, GLuint textureID, int unit) const noexcept
+    {
+        glActiveTexture(GL_TEXTURE0 + unit);
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glUniform1i(GetUniformLocation(name), unit);
+    }
+
+    void Shader::SetTextureCube(const std::string &name, GLuint textureID, int unit) const noexcept
+    {
+        glActiveTexture(GL_TEXTURE0 + unit);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+        glUniform1i(GetUniformLocation(name), unit);
+    }
+
+    void Shader::SetTexture(const std::string &name, GLuint textureID, int unit) const noexcept
+    {
+        // 默认使用 2D 纹理（向后兼容）
+        SetTexture2D(name, textureID, unit);
+    }
+
+    void Shader::SetUniformBlock(const std::string &blockName, GLuint bindingPoint) const noexcept
+    {
+        GLuint blockIndex = GetUniformBlockIndex(blockName);
+        if (blockIndex != GL_INVALID_INDEX)
+        {
+            glUniformBlockBinding(program_.get(), blockIndex, bindingPoint);
+        }
+    }
+
+    GLuint Shader::GetUniformBlockIndex(const std::string &blockName) const noexcept
+    {
+        // 查找缓存
+        auto it = uniform_block_index_cache_.find(blockName);
+        if (it != uniform_block_index_cache_.end())
+        {
+            return it->second;
+        }
+
+        // 查询 Uniform Block 索引
+        GLuint blockIndex = glGetUniformBlockIndex(program_.get(), blockName.c_str());
+
+        // 缓存结果（即使是 GL_INVALID_INDEX 也缓存，避免重复查询）
+        uniform_block_index_cache_[blockName] = blockIndex;
+
+        return blockIndex;
+    }
+
 } // namespace zk_pbr::gfx

@@ -84,17 +84,8 @@ namespace zk_pbr::gfx::GeometryUtils
             }
         }
 
-        // 构建顶点布局：position(vec3), normal(vec3), uv(vec2), tangent(vec3)
-        // 总步长：11 * sizeof(float)
-        constexpr size_t stride = 11 * sizeof(float);
-        VertexLayout layout;
-        layout.AddFloat(0, 3, stride, 0);                 // position
-        layout.AddFloat(1, 3, stride, 3 * sizeof(float)); // normal
-        layout.AddFloat(2, 2, stride, 6 * sizeof(float)); // uv
-        layout.AddFloat(3, 3, stride, 8 * sizeof(float)); // tangent
-
-        // 创建 Mesh
-        return Mesh(vertices.data(), vertices.size(), indices.data(), indices.size(), layout);
+        // 使用预定义的 PBR 顶点布局（position + normal + uv + tangent）
+        return Mesh(vertices.data(), vertices.size(), indices.data(), indices.size(), layouts::PBRVertex());
     }
 
     Mesh CreatePlane(float size, int subdivisions)
@@ -154,16 +145,8 @@ namespace zk_pbr::gfx::GeometryUtils
             }
         }
 
-        // 构建顶点布局：position(vec3), normal(vec3), uv(vec2), tangent(vec3)
-        // 总步长：11 * sizeof(float)
-        constexpr size_t stride = 11 * sizeof(float);
-        VertexLayout layout;
-        layout.AddFloat(0, 3, stride, 0);                 // position
-        layout.AddFloat(1, 3, stride, 3 * sizeof(float)); // normal
-        layout.AddFloat(2, 2, stride, 6 * sizeof(float)); // uv
-        layout.AddFloat(3, 3, stride, 8 * sizeof(float)); // tangent
-
-        return Mesh(vertices.data(), vertices.size(), indices.data(), indices.size(), layout);
+        // 使用预定义的 PBR 顶点布局（position + normal + uv + tangent）
+        return Mesh(vertices.data(), vertices.size(), indices.data(), indices.size(), layouts::PBRVertex());
     }
 
 } // namespace zk_pbr::gfx::GeometryUtils
