@@ -143,6 +143,22 @@ namespace zk_pbr::gfx
             return spec;
         }
 
+        // HDR Framebuffer 颜色附件（用于离屏 HDR 渲染）
+        inline TextureSpecification HDRFramebuffer()
+        {
+            TextureSpecification spec;
+            spec.internal_format = TextureInternalFormat::RGBA16F; // 使用 RGBA16F 节省内存
+            spec.format = TextureFormat::RGBA;
+            spec.data_type = TextureDataType::Float;
+            spec.wrap_s = TextureWrap::ClampToEdge;
+            spec.wrap_t = TextureWrap::ClampToEdge;
+            spec.min_filter = TextureFilter::Linear;
+            spec.mag_filter = TextureFilter::Linear;
+            spec.generate_mipmaps = false; // Framebuffer 不需要 mipmap
+            spec.flip_vertically = false;  // Framebuffer 纹理不需要翻转
+            return spec;
+        }
+
         // HDR 环境贴图（IBL 用，需要 mipmap）
         inline TextureSpecification HDRIBL()
         {

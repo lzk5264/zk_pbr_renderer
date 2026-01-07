@@ -188,7 +188,7 @@ namespace zk_pbr::gfx
         glUseProgram(program_.get());
     }
 
-    GLuint Shader::id() const noexcept
+    GLuint Shader::GetId() const noexcept
     {
         return program_.get();
     }

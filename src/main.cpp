@@ -9,6 +9,7 @@
 #include <zk_pbr/gfx/camera.h>
 #include <zk_pbr/gfx/camera_controller.h>
 #include <zk_pbr/gfx/uniform_buffer.h>
+#include <zk_pbr/gfx/framebuffer.h>
 
 // 全局相机控制器指针（用于鼠标滚轮回调）
 zk_pbr::gfx::ICameraController *g_camera_controller = nullptr;
@@ -36,6 +37,7 @@ int main()
 {
     try
     {
+        using namespace zk_pbr;
         // 创建窗口（GLFW 初始化 + OpenGL 上下文 + GLAD 加载）
         zk_pbr::core::Window::Config window_config;
         window_config.width = 1920;
@@ -74,6 +76,10 @@ int main()
             "./shaders/common/debug_default_vs.vert",
             "./shaders/common/debug_default_fs.frag");
 
+        gfx::Shader postprocess_shader(
+            "./shaders/common/postprocess_vs.vert",
+            "./shaders/common/postprocess_tonemapping_fs.frag");
+
         // 加载纹理（使用 HDR 预设配置）
         auto exr_tex = zk_pbr::gfx::Texture2D::LoadFromFile(
             "./resources/textures/hdr_equirect/je_gray_02_4k.exr",
@@ -83,6 +89,10 @@ int main()
         auto triangle = zk_pbr::gfx::PrimitiveFactory::CreateTriangle();
         auto cube = zk_pbr::gfx::PrimitiveFactory::CreateCube();
 
+        // 创建一个空 VAO 用于后处理全屏绘制（Core Profile 必须要有 VAO 绑定）
+        unsigned int empty_vao;
+        glGenVertexArrays(1, &empty_vao);
+
         // UBO
         struct CameraMatrices
         {
@@ -91,12 +101,19 @@ int main()
         };
         static_assert(sizeof(CameraMatrices) == 128, "Size check");
 
-        zk_pbr::gfx::UniformBuffer cameraUBO(sizeof(CameraMatrices), GL_DYNAMIC_DRAW);
-        cameraUBO.BindToPoint(0);
+        zk_pbr::gfx::UniformBuffer camera_ubo(sizeof(CameraMatrices), GL_DYNAMIC_DRAW);
+        camera_ubo.BindToPoint(0);
 
         glm::mat4 model(1.0);
-        zk_pbr::gfx::UniformBuffer objectUBO(sizeof(glm::mat4), GL_DYNAMIC_DRAW);
-        objectUBO.BindToPoint(1);
+        zk_pbr::gfx::UniformBuffer object_ubo(sizeof(glm::mat4), GL_DYNAMIC_DRAW);
+        object_ubo.BindToPoint(1);
+
+        // FBO
+        gfx::Framebuffer hdr_fbo(1920, 1080);
+        gfx::Texture2D hdr_color_texture(1920, 1080, gfx::texture_presets::HDRFramebuffer());
+        hdr_fbo.AttachTexture(hdr_color_texture.GetID(), GL_COLOR_ATTACHMENT0);
+        hdr_fbo.AttachRenderbuffer(GL_DEPTH_COMPONENT24);
+        hdr_fbo.CheckStatus();
 
         // 时间管理
         float delta_time = 0.0f;
@@ -117,7 +134,7 @@ int main()
             ProcessInput(window.GetNativeWindow());
 
             // 清屏
-            glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+            hdr_fbo.Bind();
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             // 获取相机矩阵
@@ -127,11 +144,11 @@ int main()
             CameraMatrices matrices;
             matrices.view = view;
             matrices.projection = projection;
-            cameraUBO.SetData(&matrices, sizeof(matrices));
+            camera_ubo.SetData(&matrices, sizeof(matrices));
 
             // 渲染三角形
             debug_default_shader.Use();
-            objectUBO.SetData(&model, sizeof(model));
+            object_ubo.SetData(&model, sizeof(model));
             triangle.Draw();
 
             // skybox
@@ -140,6 +157,21 @@ int main()
             zk_pbr::gfx::Shader::BindTextureToUnit(exr_tex.GetID(), 0, GL_TEXTURE_2D);
             cube.Draw();
             glDepthFunc(GL_LESS);
+
+            hdr_fbo.Unbind();
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glDisable(GL_DEPTH_TEST);
+            postprocess_shader.Use();
+            postprocess_shader.SetFloat("u_Exposure", 1.0f);
+            postprocess_shader.SetFloat("u_Gamma", 2.2f);
+            hdr_color_texture.Bind(0);
+
+            glBindVertexArray(empty_vao);
+            glDrawArrays(GL_TRIANGLES, 0, 3);
+            glBindVertexArray(0);
+
+            glEnable(GL_DEPTH_TEST);
 
             window.SwapBuffers();
             window.PollEvents();

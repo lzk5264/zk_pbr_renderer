@@ -39,17 +39,6 @@ vec2 SampleSphericalMap(vec3 v)
     return uv;
 }
 
-// ACES Tone Mapping（电影级色调映射）
-vec3 ACESFilm(vec3 x)
-{
-    float a = 2.51;
-    float b = 0.03;
-    float c = 2.43;
-    float d = 0.59;
-    float e = 0.14;
-    return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
-}
-
 void main()
 {
     // 采样等距矩形贴图
@@ -59,11 +48,7 @@ void main()
     float exposure = 1.0;
     hdrColor *= exposure;
     
-    // Tone Mapping: HDR -> LDR
-    vec3 ldrColor = ACESFilm(hdrColor);
-    
-    // Gamma 校正
-    ldrColor = pow(ldrColor, vec3(1.0 / 2.2));
-    
-    o_Color = vec4(ldrColor, 1.0);
+    // 直接输出 HDR 颜色
+    // NOTE: Tone mapping 和 gamma 校正现在应该在后处理 pass 中统一处理
+    o_Color = vec4(hdrColor, 1.0);
 }

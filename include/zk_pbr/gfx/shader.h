@@ -32,7 +32,7 @@ namespace zk_pbr::gfx
         ~Shader() = default;
 
         void Use() const noexcept;
-        GLuint id() const noexcept;
+        GLuint GetId() const noexcept;
 
         // Uniform 设置函数
         void SetBool(const std::string &name, bool value) const noexcept;
