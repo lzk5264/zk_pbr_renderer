@@ -13,6 +13,7 @@ endif()
 # 添加include目录
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/third_party)
+include_directories(${CMAKE_SOURCE_DIR}/third_party/tinyexr/deps/miniz)  # tinyexr 依赖的 miniz
 
 # 添加库目录
 link_directories(${CMAKE_SOURCE_DIR}/lib)
@@ -33,6 +34,7 @@ set(SOURCES
     ${CMAKE_SOURCE_DIR}/src/gfx/uniform_buffer.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/framebuffer.cpp
     ${CMAKE_SOURCE_DIR}/src/glad.c
+    ${CMAKE_SOURCE_DIR}/third_party/tinyexr/deps/miniz/miniz.c  # tinyexr 依赖
 )
 
 # 创建可执行文件

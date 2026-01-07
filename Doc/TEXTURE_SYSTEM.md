@@ -20,7 +20,12 @@ texture_cubemap.h/cpp - TextureCubemap 类
 ```cpp
 auto diffuse = Texture2D::LoadFromFile("diffuse.png", texture_presets::Diffuse());
 auto normal = Texture2D::LoadFromFile("normal.png", texture_presets::Normal());
-auto hdr_map = Texture2D::LoadFromFile("env.hdr", texture_presets::HDR());
+
+// HDR 纹理（天空盒）
+auto skybox = Texture2D::LoadFromFile("sky.exr", texture_presets::HDRSkybox());
+
+// HDR 纹理（IBL 环境光）
+auto env_map = Texture2D::LoadFromFile("env.hdr", texture_presets::HDRIBL());
 ```
 
 #### 方式 2：从内存创建
@@ -81,9 +86,8 @@ auto skybox = TextureCubemap::LoadFromFiles(faces);
 
 #### 方式 2：创建空 cubemap
 ```cpp
-TextureSpecification spec = texture_presets::HDR();
-spec.internal_format = TextureInternalFormat::RGB16F;
-
+// IBL 用途（需要 mipmap）
+TextureSpecification spec = texture_presets::HDRIBL();
 auto irradiance_map = TextureCubemap(32, spec); // 32x32 cubemap
 ```
 
@@ -111,16 +115,52 @@ auto tex = Texture2D::LoadFromFile("color.png", spec);
 ```
 
 ### 2. HDR 纹理
+```cpp加载
+
+#### 支持的格式
+- `.hdr` - Radiance RGBE 格式（通过 stb_image）
+- `.exr` - OpenEXR 格式（通过 tinyexr）
+
+#### HDR 预设配置
+
+**HDRSkybox - 天空盒渲染**
 ```cpp
-// 自动检测 .hdr 或 .exr 文件
-auto hdr = Texture2D::LoadFromFile("env.hdr", texture_presets::HDR());
-// 使用 RGB32F 内部格式
+// 适用于等距矩形天空盒渲染
+auto skybox = Texture2D::LoadFromFile("sky.exr", texture_presets::HDRSkybox());
+
+// 特点：
+// - wrap_s: Repeat（消除水平接缝）
+// - wrap_t: ClampToEdge（避免极点 artifact）
+// - 不生成 mipmap（全屏渲染不需要）
+// - RGB16F 格式
 ```
 
-### 3. 各向异性过滤
+**HDRIBL - IBL 环境光**
 ```cpp
-TextureSpecification spec;
-spec.anisotropy = 16.0f;  // 提升倾斜视角下的纹理质量
+// 适用于基于图像的光照（需要 mipmap）
+auto env_map = Texture2D::LoadFromFile("env.hdr", texture_presets::HDRIBL());
+
+// 特点：
+// - 所有方向 ClampToEdge
+// - 生成 mipmap（用于粗糙度采样）
+// - LinearMipmapLinear 过滤
+// - RGB16F 格式
+```
+
+**自定义 HDR 配置**
+```cpp
+auto spec = texture_presets::HDRSkybox();
+spec.internal_format = TextureInternalFormat::RGB32F;  // 更高精度
+spec.anisotropy = 16.0f;
+auto tex = Texture2D::LoadFromFile("sky.exr", spec);
+```
+
+#### 等距矩形贴图注意事项
+
+**接缝线问题：**
+等距矩形贴图将球面展开成矩形，左右边缘（经度 0° 和 360°）需要无缝连接：
+- ✅ 使用 `Repeat` 环绕模式（水平方向）
+- ❌ 使用 `ClampToEdge` 会产生明显接缝
 ```
 
 ### 4. 动态数据更新

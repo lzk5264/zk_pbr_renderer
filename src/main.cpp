@@ -38,8 +38,8 @@ int main()
     {
         // 创建窗口（GLFW 初始化 + OpenGL 上下文 + GLAD 加载）
         zk_pbr::core::Window::Config window_config;
-        window_config.width = 800;
-        window_config.height = 600;
+        window_config.width = 1920;
+        window_config.height = 1080;
         window_config.title = "ZK PBR Renderer";
         zk_pbr::core::Window window(window_config);
 
@@ -66,39 +66,37 @@ int main()
                   << std::endl;
 
         // 加载 Shader
-        zk_pbr::gfx::Shader shader(
-            "./shaders/common/default_screen_space_vs.vert",
-            "./shaders/common/default_screen_space_fs.frag");
+        zk_pbr::gfx::Shader skybox_equirect_shader(
+            "./shaders/common/skybox_equirect_vs.vert",
+            "./shaders/common/skybox_equirect_fs.frag");
 
-        zk_pbr::gfx::Shader skybox_shader(
-            "./shaders/common/skybox_vs.vert",
-            "./shaders/common/skybox_fs.frag");
+        zk_pbr::gfx::Shader debug_default_shader(
+            "./shaders/common/debug_default_vs.vert",
+            "./shaders/common/debug_default_fs.frag");
 
-        std::array<std::string, 6> faces = {
-            "./resources/textures/skybox/right.jpg",  // +X
-            "./resources/textures/skybox/left.jpg",   // -X
-            "./resources/textures/skybox/top.jpg",    // +Y
-            "./resources/textures/skybox/bottom.jpg", // -Y
-            "./resources/textures/skybox/front.jpg",  // +Z
-            "./resources/textures/skybox/back.jpg"    // -Z
-        };
-
-        auto skybox = zk_pbr::gfx::TextureCubemap::LoadFromFiles(faces);
+        // 加载纹理（使用 HDR 预设配置）
+        auto exr_tex = zk_pbr::gfx::Texture2D::LoadFromFile(
+            "./resources/textures/hdr_equirect/je_gray_02_4k.exr",
+            zk_pbr::gfx::texture_presets::HDR());
 
         // 创建几何体
         auto triangle = zk_pbr::gfx::PrimitiveFactory::CreateTriangle();
         auto cube = zk_pbr::gfx::PrimitiveFactory::CreateCube();
 
+        // UBO
         struct CameraMatrices
         {
             glm::mat4 view;       // offset 0,  size 64, align 16 ✅
             glm::mat4 projection; // offset 64, size 64, align 16 ✅
         };
         static_assert(sizeof(CameraMatrices) == 128, "Size check");
+
         zk_pbr::gfx::UniformBuffer cameraUBO(sizeof(CameraMatrices), GL_DYNAMIC_DRAW);
         cameraUBO.BindToPoint(0);
-        skybox_shader.Use();
-        skybox_shader.SetUniformBlock("CameraMatrices", 0);
+
+        glm::mat4 model(1.0);
+        zk_pbr::gfx::UniformBuffer objectUBO(sizeof(glm::mat4), GL_DYNAMIC_DRAW);
+        objectUBO.BindToPoint(1);
 
         // 时间管理
         float delta_time = 0.0f;
@@ -132,17 +130,14 @@ int main()
             cameraUBO.SetData(&matrices, sizeof(matrices));
 
             // 渲染三角形
-            shader.Use();
-            shader.SetMat4("view", view);
-            shader.SetMat4("projection", projection);
-            shader.SetMat4("model", glm::mat4(1.0f));
+            debug_default_shader.Use();
+            objectUBO.SetData(&model, sizeof(model));
             triangle.Draw();
 
             // skybox
             glDepthFunc(GL_LEQUAL);
-            skybox_shader.Use();
-            // 直接绑定到 binding=0，不需要传 uniform 名字
-            zk_pbr::gfx::Shader::BindTextureToUnit(skybox.GetID(), 0, GL_TEXTURE_CUBE_MAP);
+            skybox_equirect_shader.Use();
+            zk_pbr::gfx::Shader::BindTextureToUnit(exr_tex.GetID(), 0, GL_TEXTURE_2D);
             cube.Draw();
             glDepthFunc(GL_LESS);
 

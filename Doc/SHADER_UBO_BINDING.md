@@ -68,9 +68,9 @@ struct CameraMatrices {
 };
 static_assert(sizeof(CameraMatrices) == 128);
 
-// 创建并绑定
+// 创建并绑定到 binding point 0
 UniformBuffer cameraUBO(sizeof(CameraMatrices), GL_DYNAMIC_DRAW);
-cameraUBO.BindToPoint(0);  // 绑定到 binding point 0
+cameraUBO.BindToPoint(0);
 
 // 更新数据
 CameraMatrices matrices;
@@ -83,6 +83,7 @@ cameraUBO.SetData(&matrices, sizeof(matrices));
 ```glsl
 #version 460 core
 
+// 使用 layout(binding = N) 直接指定绑定点
 layout (std140, binding = 0) uniform CameraMatrices {
     mat4 view;
     mat4 projection;
@@ -93,11 +94,10 @@ void main() {
 }
 ```
 
-**C++ 绑定 Uniform Block**：
-```cpp
-shader.Use();
-shader.SetUniformBlock("CameraMatrices", 0);  // 绑定到 binding point 0
-```
+**重要说明**：
+- ✅ Shader 中使用 `layout(binding = N)` 后，CPU 端只需 `UBO::BindToPoint(N)`
+- ✅ **不需要**调用 `shader.SetUniformBlock()`，该函数已废弃
+- ✅ 所有使用 `binding = 0` 的 shader 会自动访问同一个 UBO
 
 ### 关键注意事项
 
@@ -116,10 +116,6 @@ shader.SetUniformBlock("CameraMatrices", 0);  // 绑定到 binding point 0
 **⚠️ mat4 对齐**：
 - mat4 天然符合 std140（列主序，每列 vec4 是 16 字节）
 - 无需手动 padding
-
-**⚠️ SetUniformBlock 时机**：
-- 只需调用一次（和 glUniformBlockBinding 类似）
-- 通常在 shader 编译后调用一次即可
 
 ---
 
@@ -160,12 +156,9 @@ void main() {
 
 **C++ 渲染循环**:
 ```cpp
-// 初始化（略）
+// 初始化（只需一次）
 UniformBuffer cameraUBO(sizeof(CameraMatrices), GL_DYNAMIC_DRAW);
-cameraUBO.BindToPoint(0);
-
-skyboxShader.Use();
-skyboxShader.SetUniformBlock("CameraMatrices", 0);
+cameraUBO.BindToPoint(0);  // 所有使用 binding=0 的 shader 都能访问
 
 // 渲染循环
 while (!window.ShouldClose()) {

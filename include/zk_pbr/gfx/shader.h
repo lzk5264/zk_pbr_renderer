@@ -59,18 +59,10 @@ namespace zk_pbr::gfx
         // @param unit: 纹理单元，对应 shader 中的 binding 值
         // @param target: 纹理目标（GL_TEXTURE_2D, GL_TEXTURE_CUBE_MAP 等）
         static void BindTextureToUnit(GLuint textureID, int unit, GLenum target = GL_TEXTURE_2D) noexcept;
-        // @param unit: 纹理单元，对应 shader 中的 binding 值
-        // @param target: 纹理目标（GL_TEXTURE_2D, GL_TEXTURE_CUBE_MAP 等）
-        static void BindTextureToUnit(GLuint textureID, int unit, GLenum target = GL_TEXTURE_2D) noexcept;
 
-        // UBO (Uniform Buffer Object) binding
-        // 绑定 Uniform Block 到指定 binding point
-        // @param blockName: Uniform Block 名称
-        // @param bindingPoint: Binding point（0-based）
-        void SetUniformBlock(const std::string &blockName, GLuint bindingPoint) const noexcept;
-
-        // 获取 Uniform Block 索引
-        [[nodiscard]] GLuint GetUniformBlockIndex(const std::string &blockName) const noexcept;
+        // ===== UBO (Uniform Buffer Object) Binding =====
+        // 注意：Shader 中统一使用 layout(std140, binding = N) 声明
+        // CPU 端只需调用 UniformBuffer::BindToPoint(N) 即可，无需通过 Shader 类设置
 
     private:
         // 独占 Program 句柄（RAII）
@@ -109,9 +101,6 @@ namespace zk_pbr::gfx
 
         // Uniform location 缓存（mutable 允许在 const 函数中修改）
         mutable std::unordered_map<std::string, GLint> uniform_location_cache_;
-
-        // Uniform Block 索引缓存
-        mutable std::unordered_map<std::string, GLuint> uniform_block_index_cache_;
 
         // 获取 uniform location（带缓存）
         GLint GetUniformLocation(const std::string &name) const noexcept;

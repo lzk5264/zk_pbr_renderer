@@ -127,17 +127,42 @@ namespace zk_pbr::gfx
             return spec;
         }
 
-        // HDR 环境贴图
-        inline TextureSpecification HDR()
+        // HDR 环境贴图（天空盒渲染用）
+        inline TextureSpecification HDRSkybox()
         {
             TextureSpecification spec;
             spec.internal_format = TextureInternalFormat::RGB16F;
             spec.format = TextureFormat::RGB;
             spec.data_type = TextureDataType::Float;
-            spec.wrap_s = TextureWrap::ClampToEdge;
+            spec.wrap_s = TextureWrap::Repeat;      // 水平 Repeat 消除接缝
+            spec.wrap_t = TextureWrap::ClampToEdge; // 垂直 ClampToEdge
+            spec.wrap_r = TextureWrap::ClampToEdge;
+            spec.min_filter = TextureFilter::Linear;
+            spec.mag_filter = TextureFilter::Linear;
+            spec.generate_mipmaps = false; // 天空盒不需要 mipmap
+            return spec;
+        }
+
+        // HDR 环境贴图（IBL 用，需要 mipmap）
+        inline TextureSpecification HDRIBL()
+        {
+            TextureSpecification spec;
+            spec.internal_format = TextureInternalFormat::RGB16F;
+            spec.format = TextureFormat::RGB;
+            spec.data_type = TextureDataType::Float;
+            spec.wrap_s = TextureWrap::ClampToEdge; // IBL 通常用 ClampToEdge
             spec.wrap_t = TextureWrap::ClampToEdge;
             spec.wrap_r = TextureWrap::ClampToEdge;
+            spec.min_filter = TextureFilter::LinearMipmapLinear; // 需要 mipmap
+            spec.mag_filter = TextureFilter::Linear;
+            spec.generate_mipmaps = true; // 生成 mipmap 用于粗糙度采样
             return spec;
+        }
+
+        // HDR 通用（向后兼容，推荐用上面两个专用预设）
+        inline TextureSpecification HDR()
+        {
+            return HDRSkybox(); // 默认使用天空盒配置
         }
 
         // 最近邻过滤（像素风格）

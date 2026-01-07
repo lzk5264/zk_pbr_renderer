@@ -17,7 +17,6 @@ out VS_OUT {
 layout(std140, binding = 0) uniform CameraUBO {
     mat4 u_View;
     mat4 u_Proj;
-    vec4 u_CameraPosWS; // xyz + padding
 };
 
 void main()

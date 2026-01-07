@@ -280,31 +280,9 @@ namespace zk_pbr::gfx
         glBindTexture(target, textureID);
     }
 
-    void Shader::SetUniformBlock(const std::string &blockName, GLuint bindingPoint) const noexcept
-    {
-        GLuint blockIndex = GetUniformBlockIndex(blockName);
-        if (blockIndex != GL_INVALID_INDEX)
-        {
-            glUniformBlockBinding(program_.get(), blockIndex, bindingPoint);
-        }
-    }
-
-    GLuint Shader::GetUniformBlockIndex(const std::string &blockName) const noexcept
-    {
-        // 查找缓存
-        auto it = uniform_block_index_cache_.find(blockName);
-        if (it != uniform_block_index_cache_.end())
-        {
-            return it->second;
-        }
-
-        // 查询 Uniform Block 索引
-        GLuint blockIndex = glGetUniformBlockIndex(program_.get(), blockName.c_str());
-
-        // 缓存结果（即使是 GL_INVALID_INDEX 也缓存，避免重复查询）
-        uniform_block_index_cache_[blockName] = blockIndex;
-
-        return blockIndex;
-    }
+    // UBO 绑定说明：
+    // Shader 中统一使用 layout(std140, binding = N) 声明 Uniform Block
+    // CPU 端只需调用 UniformBuffer::BindToPoint(N) 将 UBO 绑定到对应的 binding point
+    // 不需要通过 Shader 类进行运行时绑定
 
 } // namespace zk_pbr::gfx
