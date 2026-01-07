@@ -69,18 +69,10 @@ int main()
         zk_pbr::gfx::Shader shader(
             "./shaders/common/default_screen_space_vs.vert",
             "./shaders/common/default_screen_space_fs.frag");
-        zk_pbr::gfx::Shader debug_tex_shader(
-            "./shaders/common/debug_tex_vs.vert",
-            "./shaders/common/debug_tex_fs.frag");
 
         zk_pbr::gfx::Shader skybox_shader(
             "./shaders/common/skybox_vs.vert",
             "./shaders/common/skybox_fs.frag");
-
-        // auto diffuse = zk_pbr::gfx::Texture2D::LoadFromFile(
-        //     "./resources/textures/awesomeface.png",
-        //     zk_pbr::gfx::texture_presets::Diffuse());
-        // diffuse.Bind(0);
 
         std::array<std::string, 6> faces = {
             "./resources/textures/skybox/right.jpg",  // +X
@@ -96,20 +88,6 @@ int main()
         // 创建几何体
         auto triangle = zk_pbr::gfx::PrimitiveFactory::CreateTriangle();
         auto cube = zk_pbr::gfx::PrimitiveFactory::CreateCube();
-
-        float vertices_tex[] = {
-            // 位置              // 纹理坐标
-            -0.5f, -0.5f, 0.0f, 0.0f, 0.0f,
-            0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
-            0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
-            -0.5f, 0.5f, 0.0f, 0.0f, 1.0f};
-
-        unsigned int indices[] = {0, 1, 2, 2, 3, 0};
-
-        auto quad = zk_pbr::gfx::Mesh(
-            vertices_tex, 4,
-            indices, 6,
-            zk_pbr::gfx::layouts::Position3DTexCoord2D());
 
         struct CameraMatrices
         {
@@ -160,18 +138,11 @@ int main()
             shader.SetMat4("model", glm::mat4(1.0f));
             triangle.Draw();
 
-            // // 渲染纹理四边形
-            // debug_tex_shader.Use();
-            // debug_tex_shader.SetInt("u_tex", 0);
-            // debug_tex_shader.SetMat4("view", view);
-            // debug_tex_shader.SetMat4("projection", projection);
-            // debug_tex_shader.SetMat4("model", glm::mat4(1.0f));
-            // quad.Draw();
-
             // skybox
             glDepthFunc(GL_LEQUAL);
             skybox_shader.Use();
-            skybox_shader.SetTextureCube("u_Cubemap", skybox.GetID(), 0);
+            // 直接绑定到 binding=0，不需要传 uniform 名字
+            zk_pbr::gfx::Shader::BindTextureToUnit(skybox.GetID(), 0, GL_TEXTURE_CUBE_MAP);
             cube.Draw();
             glDepthFunc(GL_LESS);
 

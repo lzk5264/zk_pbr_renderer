@@ -272,24 +272,12 @@ namespace zk_pbr::gfx
         glUniformMatrix4fv(GetUniformLocation(name), 1, GL_FALSE, glm::value_ptr(mat));
     }
 
-    void Shader::SetTexture2D(const std::string &name, GLuint textureID, int unit) const noexcept
+    void Shader::BindTextureToUnit(GLuint textureID, int unit, GLenum target) noexcept
     {
+        // 直接绑定纹理到纹理单元，不设置 uniform
+        // Shader 中使用 layout(binding = N) uniform sampler2D texName;
         glActiveTexture(GL_TEXTURE0 + unit);
-        glBindTexture(GL_TEXTURE_2D, textureID);
-        glUniform1i(GetUniformLocation(name), unit);
-    }
-
-    void Shader::SetTextureCube(const std::string &name, GLuint textureID, int unit) const noexcept
-    {
-        glActiveTexture(GL_TEXTURE0 + unit);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
-        glUniform1i(GetUniformLocation(name), unit);
-    }
-
-    void Shader::SetTexture(const std::string &name, GLuint textureID, int unit) const noexcept
-    {
-        // 默认使用 2D 纹理（向后兼容）
-        SetTexture2D(name, textureID, unit);
+        glBindTexture(target, textureID);
     }
 
     void Shader::SetUniformBlock(const std::string &blockName, GLuint bindingPoint) const noexcept

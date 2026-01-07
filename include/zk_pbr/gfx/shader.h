@@ -52,18 +52,16 @@ namespace zk_pbr::gfx
         void SetMat3(const std::string &name, const glm::mat3 &mat) const noexcept;
         void SetMat4(const std::string &name, const glm::mat4 &mat) const noexcept;
 
-        // Texture binding
-        // 绑定 2D 纹理到指定纹理单元
-        // @param name: sampler uniform 名称
+        // ===== Texture Binding (Modern OpenGL 4.2+) =====
+        // Shader 中使用 layout(binding = N) 指定绑定点，不需要运行时 glUniform1i
+        // 直接绑定纹理到指定单元
         // @param textureID: 纹理 ID
-        // @param unit: 纹理单元（0-31）
-        void SetTexture2D(const std::string &name, GLuint textureID, int unit) const noexcept;
-
-        // 绑定 Cubemap 纹理到指定纹理单元
-        void SetTextureCube(const std::string &name, GLuint textureID, int unit) const noexcept;
-
-        // 通用纹理绑定（默认 GL_TEXTURE_2D，保持向后兼容）
-        void SetTexture(const std::string &name, GLuint textureID, int unit) const noexcept;
+        // @param unit: 纹理单元，对应 shader 中的 binding 值
+        // @param target: 纹理目标（GL_TEXTURE_2D, GL_TEXTURE_CUBE_MAP 等）
+        static void BindTextureToUnit(GLuint textureID, int unit, GLenum target = GL_TEXTURE_2D) noexcept;
+        // @param unit: 纹理单元，对应 shader 中的 binding 值
+        // @param target: 纹理目标（GL_TEXTURE_2D, GL_TEXTURE_CUBE_MAP 等）
+        static void BindTextureToUnit(GLuint textureID, int unit, GLenum target = GL_TEXTURE_2D) noexcept;
 
         // UBO (Uniform Buffer Object) binding
         // 绑定 Uniform Block 到指定 binding point

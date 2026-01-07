@@ -1,8 +1,5 @@
 # Texture 系统设计文档
 
-## 架构设计
-
-本纹理系统采用**组合优于继承**的现代 C++ 设计模式，提供工业级的 Texture2D 和 TextureCubemap 封装。
 
 ### 核心组件
 
@@ -13,50 +10,7 @@ texture2d.h/cpp       - Texture2D 类
 texture_cubemap.h/cpp - TextureCubemap 类
 ```
 
-### 设计特点
 
-#### 1. **类型安全的参数系统**
-```cpp
-enum class TextureWrap : GLenum { Repeat, ClampToEdge, ... };
-enum class TextureFilter : GLenum { Linear, Nearest, ... };
-enum class TextureInternalFormat : GLint { RGBA8, RGB16F, ... };
-```
-- 强类型枚举，避免错误
-- 支持 LDR/HDR/sRGB 格式
-- 完整的过滤和环绕模式
-
-#### 2. **预设配置（Preset）**
-```cpp
-namespace texture_presets {
-    TextureSpecification Diffuse();   // sRGB + 各向异性
-    TextureSpecification Normal();    // 线性空间
-    TextureSpecification HDR();       // 浮点格式
-    TextureSpecification UI();        // 无 mipmap
-}
-```
-
-#### 3. **RAII 资源管理**
-```cpp
-class TextureHandle {
-    ~TextureHandle() noexcept { glDeleteTextures(...); }
-    // 移动语义，禁止拷贝
-};
-```
-- 自动释放 OpenGL 纹理对象
-- 异常安全
-- 零开销抽象
-
-#### 4. **智能图像加载**
-```cpp
-class TextureLoader {
-    static TextureData LoadFromFile(path, flip);
-    static TextureData LoadHDRFromFile(path, flip);
-};
-```
-- stb_image 集成
-- 自动检测 LDR/HDR
-- RAII 管理像素数据（unique_ptr + 自定义删除器）
-- 自动推断通道数和格式
 
 ## 使用示例
 
@@ -209,24 +163,7 @@ struct Material {
 };
 ```
 
-## 环境贴图工作流
 
-```cpp
-// 1. 加载 HDR 环境贴图
-auto hdr_env = Texture2D::LoadFromFile("env.hdr", texture_presets::HDR());
-
-// 2. 创建 cubemap（未来可从 equirectangular 转换）
-auto env_cubemap = TextureCubemap::LoadFromFiles(faces, texture_presets::HDR());
-
-// 3. 预计算 IBL 贴图
-TextureSpecification irr_spec = texture_presets::HDR();
-irr_spec.min_filter = TextureFilter::Linear;
-irr_spec.generate_mipmaps = false;
-
-auto irradiance_map = TextureCubemap(32, irr_spec);
-auto prefilter_map = TextureCubemap(128, texture_presets::HDR());
-auto brdf_lut = Texture2D(512, 512, texture_presets::UI());
-```
 
 ## 性能优化建议
 
@@ -235,46 +172,3 @@ auto brdf_lut = Texture2D(512, 512, texture_presets::UI());
 3. **纹理压缩**：使用压缩格式（需要扩展）
 4. **纹理流送**：大纹理使用渐进加载
 5. **纹理图集**：合并小纹理减少绑定切换
-
-## 错误处理
-
-所有纹理操作都有完善的错误处理：
-
-```cpp
-try {
-    auto tex = Texture2D::LoadFromFile("texture.png");
-} catch (const TextureException& e) {
-    std::cerr << "Texture error: " << e.what() << std::endl;
-    // 使用默认纹理
-    auto fallback = Texture2D(1, 1, white_pixel, spec);
-}
-```
-
-## 未来扩展
-
-- [ ] 等距柱状投影转 cubemap（需要着色器）
-- [ ] 纹理压缩格式支持（DXT, BC, ASTC）
-- [ ] 3D 纹理支持
-- [ ] 纹理数组（Texture Array）
-- [ ] 异步纹理加载
-- [ ] 纹理流送系统
-- [ ] GPU 纹理生成（程序化纹理）
-
-## 依赖项
-
-- **glad**: OpenGL 函数加载
-- **stb_image.h**: 图像加载（LDR + HDR）
-- **glm**: 数学库（用于未来的投影转换）
-
-## 总结
-
-此纹理系统具备以下工业级特性：
-
-✅ **类型安全** - 强类型枚举，编译期检查  
-✅ **RAII 管理** - 自动资源释放，异常安全  
-✅ **完整功能** - LDR/HDR/sRGB/Mipmap/各向异性  
-✅ **易于使用** - 预设配置，静态工厂方法  
-✅ **高性能** - 零开销抽象，移动语义  
-✅ **可扩展** - 清晰的架构，易于添加新功能  
-✅ **错误处理** - 完善的异常和验证  
-✅ **现代 C++** - C++17，constexpr，[[nodiscard]]

@@ -6,8 +6,6 @@
 - **Camera**：纯数据类，负责存储相机状态和数学计算
 - **CameraController**：控制逻辑类，负责处理输入和更新相机
 
-这种设计将**数据与逻辑分离**，提供最大的灵活性。
-
 ---
 
 ## Camera 类
@@ -228,61 +226,7 @@ if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS) {
 
 ---
 
-## ImGui 集成（未来扩展）
 
-```cpp
-// 检查 ImGui 是否捕获输入
-void Update() {
-    ImGuiIO& io = ImGui::GetIO();
-    
-    // 如果鼠标在 UI 上，不处理相机输入
-    if (io.WantCaptureMouse) {
-        return;
-    }
-    
-    // 如果键盘被 UI 捕获
-    if (io.WantCaptureKeyboard) {
-        return;
-    }
-    
-    // 正常更新相机
-    controller->Update(window, dt);
-}
-
-// ImGui 界面
-ImGui::Begin("Camera Settings");
-
-// 切换控制器
-static int mode = 0;
-if (ImGui::RadioButton("Editor", &mode, 0)) {
-    SetControllerMode(ControllerMode::Editor, camera, window);
-}
-ImGui::SameLine();
-if (ImGui::RadioButton("FPS", &mode, 1)) {
-    SetControllerMode(ControllerMode::FPS, camera, window);
-}
-
-// 调节参数
-float speed = controller->GetMoveSpeed();
-if (ImGui::SliderFloat("Move Speed", &speed, 1.0f, 20.0f)) {
-    controller->SetMoveSpeed(speed);
-}
-
-float sensitivity = controller->GetMouseSensitivity();
-if (ImGui::SliderFloat("Sensitivity", &sensitivity, 0.05f, 0.5f)) {
-    controller->SetMouseSensitivity(sensitivity);
-}
-
-// 显示相机信息
-glm::vec3 pos = camera.GetPosition();
-ImGui::Text("Position: (%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z);
-ImGui::Text("Yaw: %.2f, Pitch: %.2f", camera.GetYaw(), camera.GetPitch());
-ImGui::Text("FOV: %.2f", camera.GetFOV());
-
-ImGui::End();
-```
-
----
 
 ## 完整示例
 
@@ -367,22 +311,6 @@ int main() {
 - **精确调试**：按住右键时才移动，可以精确定位相机
 - **符合习惯**：Unity/Unreal/Blender 都是这种模式
 
-### 面试时怎么讲？
-
-**面试官**："你的相机系统怎么设计的？"
-
-**你**：
-> "我把 Camera 和 CameraController 分离。Camera 是纯数据类，只负责存储位置、旋转和 FOV，以及计算 view/projection 矩阵。CameraController 负责输入处理。
-> 
-> 我实现了三种 Controller：
-> 1. EditorController - 按住右键才旋转，适合开发调试
-> 2. FPSController - 鼠标直接控制，适合游戏运行
-> 3. OrbitController - 围绕目标旋转，适合模型查看
-> 
-> 这种设计的好处是，我可以运行时切换控制器，而且 Camera 可以独立用于过场动画或序列化保存。"
-
----
-
 ## 常见问题
 
 **Q: 为什么不用四元数？**  
@@ -396,7 +324,3 @@ A: Camera 是纯数据类，直接序列化 position/yaw/pitch/fov 即可。
 
 **Q: 多相机怎么处理？**  
 A: 创建多个 Camera 实例，只给主相机绑定 Controller。
-
----
-
-**相机系统实现完成！**现在可以自由移动视角查看场景了。
