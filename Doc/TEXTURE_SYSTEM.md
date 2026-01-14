@@ -114,8 +114,7 @@ spec.srgb = true;  // 自动使用 SRGB8_ALPHA8
 auto tex = Texture2D::LoadFromFile("color.png", spec);
 ```
 
-### 2. HDR 纹理
-```cpp加载
+### 2. HDR 纹理加载
 
 #### 支持的格式
 - `.hdr` - Radiance RGBE 格式（通过 stb_image）
@@ -123,44 +122,43 @@ auto tex = Texture2D::LoadFromFile("color.png", spec);
 
 #### HDR 预设配置
 
-**HDRSkybox - 天空盒渲染**
-```cpp
-// 适用于等距矩形天空盒渲染
-auto skybox = Texture2D::LoadFromFile("sky.exr", texture_presets::HDRSkybox());
+| 预设名 | 用途 | 关键特点 |
+|--------|------|----------|
+| `HDREquirect()` | 加载等距矩形 HDR 图片 | Linear 过滤，无 mipmap，RGB16F |
+| `HDRCubemap()` | Cubemap 最终输出（天空盒/IBL） | LinearMipmapLinear，有 mipmap，RGB16F |
+| `HDRFramebuffer()` | FBO 颜色附件 | Linear 过滤，无 mipmap，RGBA16F |
 
-// 特点：
-// - wrap_s: Repeat（消除水平接缝）
-// - wrap_t: ClampToEdge（避免极点 artifact）
-// - 不生成 mipmap（全屏渲染不需要）
-// - RGB16F 格式
+**HDREquirect - 等距矩形 HDR 加载**
+```cpp
+// 内部用于 LoadFromEquirectangular()
+// 一般不需要直接使用
+auto equirect = Texture2D::LoadFromFile("sky.exr", texture_presets::HDREquirect());
 ```
 
-**HDRIBL - IBL 环境光**
+**HDRCubemap - Cubemap 输出**
 ```cpp
-// 适用于基于图像的光照（需要 mipmap）
-auto env_map = Texture2D::LoadFromFile("env.hdr", texture_presets::HDRIBL());
+// 用于天空盒渲染、环境反射、IBL
+auto env_cubemap = TextureCubemap::LoadFromEquirectangular(
+    "env.exr", 
+    1024,  // cubemap 分辨率
+    texture_presets::HDRCubemap());
 
 // 特点：
 // - 所有方向 ClampToEdge
-// - 生成 mipmap（用于粗糙度采样）
+// - 生成 mipmap（用于粗糙度 LOD 采样）
 // - LinearMipmapLinear 过滤
 // - RGB16F 格式
 ```
 
-**自定义 HDR 配置**
+**HDRFramebuffer - 离屏 HDR 渲染**
 ```cpp
-auto spec = texture_presets::HDRSkybox();
-spec.internal_format = TextureInternalFormat::RGB32F;  // 更高精度
-spec.anisotropy = 16.0f;
-auto tex = Texture2D::LoadFromFile("sky.exr", spec);
-```
+// 用于后处理前的 HDR 渲染目标
+auto hdr_color = Texture2D(width, height, texture_presets::HDRFramebuffer());
 
-#### 等距矩形贴图注意事项
-
-**接缝线问题：**
-等距矩形贴图将球面展开成矩形，左右边缘（经度 0° 和 360°）需要无缝连接：
-- ✅ 使用 `Repeat` 环绕模式（水平方向）
-- ❌ 使用 `ClampToEdge` 会产生明显接缝
+// 特点：
+// - ClampToEdge
+// - 无 mipmap
+// - RGBA16F 格式（支持透明度）
 ```
 
 ### 4. 动态数据更新

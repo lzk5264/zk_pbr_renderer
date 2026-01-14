@@ -20,8 +20,13 @@ namespace zk_pbr::gfx
     class Shader
     {
     public:
-        Shader() = delete;
+        Shader() = default; // 允许默认构造（内部使用）
         Shader(const std::string &vs_path, const std::string &fs_path);
+
+        // 从源码创建 Shader
+        [[nodiscard]] static Shader CreateFromSource(
+            const std::string &vs_source,
+            const std::string &fs_source);
 
         Shader(const Shader &) = delete;
         Shader &operator=(const Shader &) = delete;

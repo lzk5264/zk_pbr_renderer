@@ -5,6 +5,7 @@
 
 #include <zk_pbr/gfx/texture.h>
 #include <zk_pbr/gfx/texture_parameters.h>
+#include <zk_pbr/gfx/texture2d.h>
 
 namespace zk_pbr::gfx
 {
@@ -39,14 +40,30 @@ namespace zk_pbr::gfx
             const std::array<std::string, 6> &paths,
             const TextureSpecification &spec = TextureSpecification{});
 
-        // 从单张等距柱状投影图加载（用于 HDR 环境贴图）
+        // 从等距矩形 HDR 贴图转换为 Cubemap（推荐用于 IBL 和环境贴图）
+        // @param path: 等距矩形 HDR 文件路径（.hdr 或 .exr）
+        // @param cubemap_size: 生成的 cubemap 每面尺寸
+        // @param spec: Cubemap 纹理规格
         [[nodiscard]] static TextureCubemap LoadFromEquirectangular(
             const std::string &path,
             int cubemap_size = 512,
-            const TextureSpecification &spec = texture_presets::HDR());
+            const TextureSpecification &spec = texture_presets::HDRCubemap());
+
+        // 从环境 Cubemap 生成 Irradiance Map（漫反射环境光照）
+        // 使用蒙特卡洛采样进行半球余弦权重积分
+        // @param source_cubemap: 源环境 cubemap
+        // @param irradiance_size: 生成的 irradiance map 每面尺寸（通常 32-64 就够了）
+        // @param sample_count: 每像素采样数（越多越准确，建议 256-1024）
+        // @param spec: 输出 Cubemap 纹理规格
+        [[nodiscard]] static TextureCubemap ConvolveIrradiance(
+            const TextureCubemap &source_cubemap,
+            int irradiance_size = 32,
+            int sample_count = 512,
+            const TextureSpecification &spec = texture_presets::HDRCubemap());
 
         // 绑定到纹理单元
         void Bind(uint32_t slot = 0) const noexcept;
+
         void Unbind() const noexcept;
 
         // 更新单个面的数据
@@ -60,9 +77,18 @@ namespace zk_pbr::gfx
         void SetFilterMode(TextureFilter min_filter, TextureFilter mag_filter);
 
         // Getter
-        [[nodiscard]] GLuint GetID() const noexcept { return handle_.Get(); }
-        [[nodiscard]] int GetSize() const noexcept { return size_; }
-        [[nodiscard]] bool IsValid() const noexcept { return handle_.IsValid(); }
+        [[nodiscard]] GLuint GetID() const noexcept
+        {
+            return handle_.Get();
+        }
+        [[nodiscard]] int GetSize() const noexcept
+        {
+            return size_;
+        }
+        [[nodiscard]] bool IsValid() const noexcept
+        {
+            return handle_.IsValid();
+        }
 
         // Cubemap 面索引常量
         static constexpr uint32_t FACE_POSITIVE_X = 0; // Right

@@ -147,6 +147,40 @@ namespace zk_pbr::gfx
         return shader; // move
     }
 
+    Shader Shader::CreateFromSource(const std::string &vs_source, const std::string &fs_source)
+    {
+        // 编译顶点着色器
+        auto vs = CompileShaderFromSource(vs_source, GL_VERTEX_SHADER, "[inline_vs]");
+
+        // 编译片段着色器
+        auto fs = CompileShaderFromSource(fs_source, GL_FRAGMENT_SHADER, "[inline_fs]");
+
+        // 链接程序
+        GLuint program_id = glCreateProgram();
+        glAttachShader(program_id, vs.get());
+        glAttachShader(program_id, fs.get());
+        glLinkProgram(program_id);
+
+        // 检查链接错误
+        GLint success = 0;
+        glGetProgramiv(program_id, GL_LINK_STATUS, &success);
+
+        if (!success)
+        {
+            std::string log = GetProgramInfoLog(program_id);
+            glDeleteProgram(program_id);
+            throw ShaderException(
+                std::string("ERROR::SHADER::PROGRAM::LINK_FAILED\n") +
+                "SOURCE: [inline shader]\n" +
+                log);
+        }
+
+        // 创建 Shader 对象并直接设置 program
+        Shader shader;
+        shader.program_.reset(program_id);
+        return shader;
+    }
+
     Shader::Shader(const std::string &vs_path, const std::string &fs_path)
     {
         const std::string vs_src = LoadShaderSource(vs_path);
