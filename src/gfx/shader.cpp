@@ -1,114 +1,20 @@
 #include <zk_pbr/gfx/shader.h>
 
-#include <cerrno>
-#include <cstring>
 #include <fstream>
 #include <sstream>
+
+#include <glm/gtc/type_ptr.hpp>
 
 namespace zk_pbr::gfx
 {
 
-    class Shader::UniqueShader
+    // ===== 文件读取 =====
+    std::string Shader::ReadFile(const std::string &path)
     {
-    public:
-        UniqueShader() = default;
-        UniqueShader(GLuint id, GLenum type) noexcept : id_(id), type_(type) {}
-
-        UniqueShader(const UniqueShader &) = delete;
-        UniqueShader &operator=(const UniqueShader &) = delete;
-
-        UniqueShader(UniqueShader &&other) noexcept
-            : id_(std::exchange(other.id_, 0)), type_(other.type_) {}
-
-        UniqueShader &operator=(UniqueShader &&other) noexcept
-        {
-            if (this != &other)
-            {
-                reset(std::exchange(other.id_, 0), other.type_);
-            }
-            return *this;
-        }
-
-        ~UniqueShader() noexcept { reset(0, type_); }
-
-        GLuint get() const noexcept { return id_; }
-        GLuint release() noexcept { return std::exchange(id_, 0); }
-        GLenum type() const noexcept { return type_; }
-
-        void reset(GLuint new_id, GLenum new_type) noexcept
-        {
-            if (id_)
-                glDeleteShader(id_);
-            id_ = new_id;
-            type_ = new_type;
-        }
-
-    private:
-        GLuint id_ = 0;
-        GLenum type_ = 0;
-    };
-
-    static std::string GetShaderInfoLog(GLuint shader)
-    {
-        GLint len = 0;
-        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &len);
-
-        if (len <= 1)
-            return {};
-
-        std::string log(static_cast<size_t>(len), '\0');
-        GLsizei written = 0;
-        glGetShaderInfoLog(shader, len, &written, log.data());
-
-        if (written > 0)
-            log.resize(static_cast<size_t>(written));
-        else
-            log.clear();
-
-        return log;
-    }
-
-    static std::string GetProgramInfoLog(GLuint program)
-    {
-        GLint len = 0;
-        glGetProgramiv(program, GL_INFO_LOG_LENGTH, &len);
-
-        if (len <= 1)
-            return {};
-
-        std::string log(static_cast<size_t>(len), '\0');
-        GLsizei written = 0;
-        glGetProgramInfoLog(program, len, &written, log.data());
-
-        if (written > 0)
-            log.resize(static_cast<size_t>(written));
-        else
-            log.clear();
-
-        return log;
-    }
-
-    std::string Shader::ShaderTypeToString(GLenum shader_type)
-    {
-        switch (shader_type)
-        {
-        case GL_VERTEX_SHADER:
-            return "VERTEX";
-        case GL_FRAGMENT_SHADER:
-            return "FRAGMENT";
-        default:
-            return "UNKNOWN";
-        }
-    }
-
-    std::string Shader::LoadShaderSource(const std::string &file_path)
-    {
-        std::ifstream file(file_path, std::ios::in | std::ios::binary);
+        std::ifstream file(path, std::ios::in | std::ios::binary);
         if (!file.is_open())
         {
-            throw ShaderException(
-                std::string("ERROR::SHADER::FILE_NOT_FOUND\nPATH: ") + file_path +
-                "\nREASON: " + std::strerror(errno));
+            throw ShaderException("Failed to open shader file: " + path);
         }
 
         std::stringstream buffer;
@@ -116,207 +22,258 @@ namespace zk_pbr::gfx
         return buffer.str();
     }
 
-    Shader::UniqueShader Shader::CompileShaderFromSource(const std::string &source,
-                                                         GLenum shader_type,
-                                                         const std::string &debug_path)
+    // ===== 编译错误检查 =====
+    void Shader::CheckCompileErrors(GLuint shader, GLenum type, const std::string &path)
     {
-        GLuint id = glCreateShader(shader_type);
-        if (!id)
-        {
-            throw ShaderException(
-                std::string("ERROR::SHADER::") + ShaderTypeToString(shader_type) +
-                "::CREATE_FAILED\nPATH: " + debug_path);
-        }
-
-        UniqueShader shader{id, shader_type};
-
-        const char *cstr = source.c_str();
-        glShaderSource(shader.get(), 1, &cstr, nullptr);
-        glCompileShader(shader.get());
-
-        GLint ok = 0;
-        glGetShaderiv(shader.get(), GL_COMPILE_STATUS, &ok);
-        if (!ok)
-        {
-            std::string log = GetShaderInfoLog(shader.get());
-            throw ShaderException(
-                std::string("ERROR::SHADER::") + ShaderTypeToString(shader_type) +
-                "::COMPILATION_FAILED\nPATH: " + debug_path + "\n" + log);
-        }
-
-        return shader; // move
-    }
-
-    Shader Shader::CreateFromSource(const std::string &vs_source, const std::string &fs_source)
-    {
-        // 编译顶点着色器
-        auto vs = CompileShaderFromSource(vs_source, GL_VERTEX_SHADER, "[inline_vs]");
-
-        // 编译片段着色器
-        auto fs = CompileShaderFromSource(fs_source, GL_FRAGMENT_SHADER, "[inline_fs]");
-
-        // 链接程序
-        GLuint program_id = glCreateProgram();
-        glAttachShader(program_id, vs.get());
-        glAttachShader(program_id, fs.get());
-        glLinkProgram(program_id);
-
-        // 检查链接错误
-        GLint success = 0;
-        glGetProgramiv(program_id, GL_LINK_STATUS, &success);
+        GLint success;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
 
         if (!success)
         {
-            std::string log = GetProgramInfoLog(program_id);
-            glDeleteProgram(program_id);
-            throw ShaderException(
-                std::string("ERROR::SHADER::PROGRAM::LINK_FAILED\n") +
-                "SOURCE: [inline shader]\n" +
-                log);
+            GLint log_length;
+            glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
+
+            std::string info_log(log_length, '\0');
+            glGetShaderInfoLog(shader, log_length, nullptr, info_log.data());
+
+            std::string type_str = (type == GL_VERTEX_SHADER) ? "VERTEX" : "FRAGMENT";
+            throw ShaderException("Shader compilation failed [" + type_str + "]: " + path + "\n" + info_log);
+        }
+    }
+
+    // ===== 链接错误检查 =====
+    void Shader::CheckLinkErrors(GLuint program)
+    {
+        GLint success;
+        glGetProgramiv(program, GL_LINK_STATUS, &success);
+
+        if (!success)
+        {
+            GLint log_length;
+            glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_length);
+
+            std::string info_log(log_length, '\0');
+            glGetProgramInfoLog(program, log_length, nullptr, info_log.data());
+
+            throw ShaderException("Shader program linking failed:\n" + info_log);
+        }
+    }
+
+    // ===== 编译单个 Shader =====
+    GLuint Shader::CompileShader(const std::string &source, GLenum type, const std::string &path)
+    {
+        GLuint shader = glCreateShader(type);
+        if (shader == 0)
+        {
+            throw ShaderException("Failed to create shader object");
         }
 
-        // 创建 Shader 对象并直接设置 program
-        Shader shader;
-        shader.program_.reset(program_id);
+        const char *src = source.c_str();
+        glShaderSource(shader, 1, &src, nullptr);
+        glCompileShader(shader);
+
+        try
+        {
+            CheckCompileErrors(shader, type, path);
+        }
+        catch (...)
+        {
+            glDeleteShader(shader); // 编译失败，清理资源
+            throw;
+        }
+
         return shader;
     }
 
-    Shader::Shader(const std::string &vs_path, const std::string &fs_path)
+    // ===== 从源码创建 =====
+    Shader Shader::CreateFromSource(const std::string &vs_source, const std::string &fs_source)
     {
-        const std::string vs_src = LoadShaderSource(vs_path);
-        const std::string fs_src = LoadShaderSource(fs_path);
+        Shader shader;
 
-        UniqueShader vs = CompileShaderFromSource(vs_src, GL_VERTEX_SHADER, vs_path);
-        UniqueShader fs = CompileShaderFromSource(fs_src, GL_FRAGMENT_SHADER, fs_path);
-
-        GLuint prog = glCreateProgram();
-        if (!prog)
+        GLuint vs = CompileShader(vs_source, GL_VERTEX_SHADER, "[inline]");
+        GLuint fs = 0;
+        try
         {
-            throw ShaderException("ERROR::SHADER::PROGRAM::CREATE_FAILED");
+            fs = CompileShader(fs_source, GL_FRAGMENT_SHADER, "[inline]");
+        }
+        catch (...)
+        {
+            glDeleteShader(vs);
+            throw;
         }
 
-        UniqueProgram program{prog};
+        shader.program_id_ = glCreateProgram();
+        glAttachShader(shader.program_id_, vs);
+        glAttachShader(shader.program_id_, fs);
+        glLinkProgram(shader.program_id_);
 
-        glAttachShader(program.get(), vs.get());
-        glAttachShader(program.get(), fs.get());
-        glLinkProgram(program.get());
+        glDeleteShader(vs);
+        glDeleteShader(fs);
 
-        GLint ok = 0;
-        glGetProgramiv(program.get(), GL_LINK_STATUS, &ok);
-        if (!ok)
+        try
         {
-            std::string log = GetProgramInfoLog(program.get());
-            throw ShaderException(
-                std::string("ERROR::SHADER::PROGRAM::LINKING_FAILED\n") + log);
+            CheckLinkErrors(shader.program_id_);
+        }
+        catch (...)
+        {
+            glDeleteProgram(shader.program_id_);
+            shader.program_id_ = 0;
+            throw;
         }
 
-        // 更清晰/更稳：link 成功后 detach
-        glDetachShader(program.get(), vs.get());
-        glDetachShader(program.get(), fs.get());
-
-        program_ = std::move(program);
+        return shader;
     }
 
-    void Shader::Use() const noexcept
+    // ===== 构造函数 =====
+    Shader::Shader(const std::string &vertex_path, const std::string &fragment_path)
     {
-        glUseProgram(program_.get());
+        // 1. 读取文件
+        std::string vs_source = ReadFile(vertex_path);
+        std::string fs_source = ReadFile(fragment_path);
+
+        // 2. 编译 Vertex Shader
+        GLuint vs = CompileShader(vs_source, GL_VERTEX_SHADER, vertex_path);
+
+        // 3. 编译 Fragment Shader (如果失败，需要清理 vs)
+        GLuint fs = 0;
+        try
+        {
+            fs = CompileShader(fs_source, GL_FRAGMENT_SHADER, fragment_path);
+        }
+        catch (...)
+        {
+            glDeleteShader(vs);
+            throw;
+        }
+
+        // 4. 创建并链接 Program
+        program_id_ = glCreateProgram();
+        glAttachShader(program_id_, vs);
+        glAttachShader(program_id_, fs);
+        glLinkProgram(program_id_);
+
+        // 5. 链接完成后可以删除 Shader 对象
+        // (这是面试考点：link 后 shader 对象就没用了)
+        glDeleteShader(vs);
+        glDeleteShader(fs);
+
+        // 6. 检查链接错误
+        try
+        {
+            CheckLinkErrors(program_id_);
+        }
+        catch (...)
+        {
+            glDeleteProgram(program_id_);
+            program_id_ = 0;
+            throw;
+        }
     }
 
-    GLuint Shader::GetId() const noexcept
+    // ===== 析构函数 =====
+    Shader::~Shader()
     {
-        return program_.get();
+        if (program_id_ != 0)
+        {
+            glDeleteProgram(program_id_);
+        }
     }
 
-    // ======== Uniform Location 缓存实现 ========
-
-    GLint Shader::GetUniformLocation(const std::string &name) const noexcept
+    // ===== 移动构造 =====
+    Shader::Shader(Shader &&other) noexcept
+        : program_id_(other.program_id_),
+          uniform_cache_(std::move(other.uniform_cache_))
     {
-        // 先查缓存
-        auto it = uniform_location_cache_.find(name);
-        if (it != uniform_location_cache_.end())
+        other.program_id_ = 0;
+    }
+
+    // ===== 移动赋值 =====
+    Shader &Shader::operator=(Shader &&other) noexcept
+    {
+        if (this != &other)
+        {
+            // 先释放自己的资源
+            if (program_id_ != 0)
+            {
+                glDeleteProgram(program_id_);
+            }
+
+            // 接管 other 的资源
+            program_id_ = other.program_id_;
+            uniform_cache_ = std::move(other.uniform_cache_);
+
+            other.program_id_ = 0;
+        }
+        return *this;
+    }
+
+    // ===== 使用 Shader =====
+    void Shader::Use() const
+    {
+        glUseProgram(program_id_);
+    }
+
+    // ===== Uniform Location 缓存 =====
+    GLint Shader::GetUniformLocation(const std::string &name) const
+    {
+        auto it = uniform_cache_.find(name);
+        if (it != uniform_cache_.end())
         {
             return it->second;
         }
 
-        // 缓存未命中，查询并缓存
-        GLint location = glGetUniformLocation(program_.get(), name.c_str());
-        uniform_location_cache_[name] = location;
+        GLint location = glGetUniformLocation(program_id_, name.c_str());
+        uniform_cache_[name] = location;
         return location;
     }
 
-    // ======== Uniform 设置函数实现 ========
+    // ===== Uniform Setters =====
 
-    void Shader::SetBool(const std::string &name, bool value) const noexcept
+    void Shader::SetBool(const std::string &name, bool value) const
     {
         glUniform1i(GetUniformLocation(name), static_cast<int>(value));
     }
 
-    void Shader::SetInt(const std::string &name, int value) const noexcept
+    void Shader::SetInt(const std::string &name, int value) const
     {
         glUniform1i(GetUniformLocation(name), value);
     }
 
-    void Shader::SetFloat(const std::string &name, float value) const noexcept
+    void Shader::SetFloat(const std::string &name, float value) const
     {
         glUniform1f(GetUniformLocation(name), value);
     }
 
-    void Shader::SetVec2(const std::string &name, const glm::vec2 &value) const noexcept
+    void Shader::SetVec2(const std::string &name, const glm::vec2 &value) const
     {
         glUniform2fv(GetUniformLocation(name), 1, glm::value_ptr(value));
     }
 
-    void Shader::SetVec2(const std::string &name, float x, float y) const noexcept
-    {
-        glUniform2f(GetUniformLocation(name), x, y);
-    }
-
-    void Shader::SetVec3(const std::string &name, const glm::vec3 &value) const noexcept
+    void Shader::SetVec3(const std::string &name, const glm::vec3 &value) const
     {
         glUniform3fv(GetUniformLocation(name), 1, glm::value_ptr(value));
     }
 
-    void Shader::SetVec3(const std::string &name, float x, float y, float z) const noexcept
-    {
-        glUniform3f(GetUniformLocation(name), x, y, z);
-    }
-
-    void Shader::SetVec4(const std::string &name, const glm::vec4 &value) const noexcept
+    void Shader::SetVec4(const std::string &name, const glm::vec4 &value) const
     {
         glUniform4fv(GetUniformLocation(name), 1, glm::value_ptr(value));
     }
 
-    void Shader::SetVec4(const std::string &name, float x, float y, float z, float w) const noexcept
-    {
-        glUniform4f(GetUniformLocation(name), x, y, z, w);
-    }
-
-    void Shader::SetMat2(const std::string &name, const glm::mat2 &mat) const noexcept
-    {
-        glUniformMatrix2fv(GetUniformLocation(name), 1, GL_FALSE, glm::value_ptr(mat));
-    }
-
-    void Shader::SetMat3(const std::string &name, const glm::mat3 &mat) const noexcept
+    void Shader::SetMat3(const std::string &name, const glm::mat3 &mat) const
     {
         glUniformMatrix3fv(GetUniformLocation(name), 1, GL_FALSE, glm::value_ptr(mat));
     }
 
-    void Shader::SetMat4(const std::string &name, const glm::mat4 &mat) const noexcept
+    void Shader::SetMat4(const std::string &name, const glm::mat4 &mat) const
     {
         glUniformMatrix4fv(GetUniformLocation(name), 1, GL_FALSE, glm::value_ptr(mat));
     }
 
-    void Shader::BindTextureToUnit(GLuint textureID, int unit, GLenum target) noexcept
+    // ===== 纹理绑定 =====
+    void Shader::BindTextureToUnit(GLuint texture_id, int unit, GLenum target)
     {
-        // 直接绑定纹理到纹理单元，不设置 uniform
-        // Shader 中使用 layout(binding = N) uniform sampler2D texName;
         glActiveTexture(GL_TEXTURE0 + unit);
-        glBindTexture(target, textureID);
+        glBindTexture(target, texture_id);
     }
-
-    // UBO 绑定说明：
-    // Shader 中统一使用 layout(std140, binding = N) 声明 Uniform Block
-    // CPU 端只需调用 UniformBuffer::BindToPoint(N) 将 UBO 绑定到对应的 binding point
-    // 不需要通过 Shader 类进行运行时绑定
 
 } // namespace zk_pbr::gfx

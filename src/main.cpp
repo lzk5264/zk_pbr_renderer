@@ -1,5 +1,7 @@
 #include <iostream>
 #include <memory>
+#include <vector>
+#include <cfloat>
 
 #include <zk_pbr/core/window.h>
 #include <zk_pbr/gfx/shader.h>
@@ -88,8 +90,8 @@ int main()
             "./shaders/common/skybox_fs.frag");
 
         // 创建几何体
-        auto triangle = zk_pbr::gfx::PrimitiveFactory::CreateTriangle();
         auto cube = zk_pbr::gfx::PrimitiveFactory::CreateCube();
+        auto quad = zk_pbr::gfx::PrimitiveFactory::CreateQuad();
 
         // 创建一个空 VAO 用于后处理全屏绘制（Core Profile 必须要有 VAO 绑定）
         // 使用 RAII 风格管理
@@ -117,7 +119,7 @@ int main()
 
         // FBO（使用配置中的宽高）
         gfx::Framebuffer hdr_fbo(window_config.width, window_config.height);
-        gfx::Texture2D hdr_color_texture(window_config.width, window_config.height, gfx::texture_presets::HDRFramebuffer());
+        gfx::Texture2D hdr_color_texture(window_config.width, window_config.height, gfx::TexturePresets::HDRRenderTarget());
         hdr_fbo.AttachTexture(hdr_color_texture.GetID(), GL_COLOR_ATTACHMENT0);
         hdr_fbo.AttachRenderbuffer(GL_DEPTH_COMPONENT24);
         hdr_fbo.CheckStatus();
@@ -125,15 +127,17 @@ int main()
         // === 预处理：将等距矩形 HDR 转换为 cubemap ===
         const int cubemap_size = 1024;
         auto env_cubemap = gfx::TextureCubemap::LoadFromEquirectangular(
-            "./resources/textures/hdr_equirect/je_gray_02_4k.exr",
+            "./resources/textures/hdr_equirect/blue_photo_studio_4k.exr",
             cubemap_size,
-            gfx::texture_presets::HDRCubemap());
+            gfx::TexturePresets::HDRCubemap());
 
         // === 预处理：从环境 cubemap 生成 irradiance map ===
+        // 使用专门的 IrradianceMap 规格（不需要 mipmap）
         auto irradiance_cubemap = gfx::TextureCubemap::ConvolveIrradiance(
             env_cubemap,
-            32,   // irradiance map 尺寸（32x32 足够）
-            512); // 采样数
+            32,                                    // irradiance map 尺寸（32x32 足够）
+            512,                                   // 采样数
+            gfx::TexturePresets::IrradianceMap()); // 使用 Irradiance 专用规格
 
         // 时间管理
         float delta_time = 0.0f;
@@ -167,14 +171,14 @@ int main()
             camera_ubo.SetData(&camera_data, sizeof(camera_data));
 
             // 渲染三角形
-            debug_default_shader.Use();
-            object_ubo.SetData(&object_data, sizeof(object_data));
-            triangle.Draw();
+            // debug_default_shader.Use();
+            // object_ubo.SetData(&object_data, sizeof(object_data));
+            // triangle.Draw();
 
             // skybox
             glDepthFunc(GL_LEQUAL);
             skybox_shader.Use();
-            zk_pbr::gfx::Shader::BindTextureToUnit(env_cubemap.GetID(), 0, GL_TEXTURE_CUBE_MAP);
+            zk_pbr::gfx::Shader::BindTextureToUnit(irradiance_cubemap.GetID(), 0, GL_TEXTURE_CUBE_MAP);
             cube.Draw();
             glDepthFunc(GL_LESS);
 

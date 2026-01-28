@@ -1,68 +1,41 @@
 #pragma once
 
-#include <string>
+#include <glad/glad.h>
 
-#include <zk_pbr/gfx/texture.h>
 #include <zk_pbr/gfx/texture_parameters.h>
 
 namespace zk_pbr::gfx
 {
 
-    // 2D 纹理类
+    // 2D 纹理 (RAII)
+    // 用于 HDR FBO 颜色附件
     class Texture2D
     {
     public:
-        // 默认构造（空纹理）
         Texture2D() = default;
 
-        // 从内存数据创建纹理
-        Texture2D(int width, int height, const void *data, const TextureSpecification &spec);
+        // 创建空纹理 (用于 FBO 附件)
+        Texture2D(int width, int height, const TextureSpec &spec);
 
-        // 创建空纹理（用于 FBO 附件）
-        Texture2D(int width, int height, const TextureSpecification &spec);
+        ~Texture2D();
 
+        // 禁止拷贝，允许移动
         Texture2D(const Texture2D &) = delete;
         Texture2D &operator=(const Texture2D &) = delete;
+        Texture2D(Texture2D &&other) noexcept;
+        Texture2D &operator=(Texture2D &&other) noexcept;
 
-        Texture2D(Texture2D &&) noexcept = default;
-        Texture2D &operator=(Texture2D &&) noexcept = default;
+        void Bind(unsigned int slot = 0) const;
 
-        ~Texture2D() = default;
-
-        // 从文件加载（静态工厂方法）
-        [[nodiscard]] static Texture2D LoadFromFile(const std::string &path,
-                                                    const TextureSpecification &spec = TextureSpecification{});
-
-        // 绑定到纹理单元
-        void Bind(uint32_t slot = 0) const noexcept;
-        void Unbind() const noexcept;
-
-        // 更新纹理数据（部分或全部）
-        void SetData(const void *data, int width, int height, int x_offset = 0, int y_offset = 0);
-
-        // 重新生成 mipmap
-        void GenerateMipmaps() noexcept;
-
-        // 参数设置
-        void SetWrapMode(TextureWrap wrap_s, TextureWrap wrap_t);
-        void SetFilterMode(TextureFilter min_filter, TextureFilter mag_filter);
-        void SetBorderColor(float r, float g, float b, float a);
-        void SetAnisotropy(float level);
-
-        // Getter
-        [[nodiscard]] GLuint GetID() const noexcept { return handle_.Get(); }
-        [[nodiscard]] int GetWidth() const noexcept { return width_; }
-        [[nodiscard]] int GetHeight() const noexcept { return height_; }
-        [[nodiscard]] bool IsValid() const noexcept { return handle_.IsValid(); }
+        GLuint GetID() const { return id_; }
+        int GetWidth() const { return width_; }
+        int GetHeight() const { return height_; }
+        bool IsValid() const { return id_ != 0; }
 
     private:
-        TextureHandle handle_;
-        TextureSpecification spec_;
+        GLuint id_ = 0;
         int width_ = 0;
         int height_ = 0;
-
-        void ApplyParameters();
-        void ValidateDimensions(int width, int height) const;
     };
 
 } // namespace zk_pbr::gfx
