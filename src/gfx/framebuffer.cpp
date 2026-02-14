@@ -55,12 +55,12 @@ namespace zk_pbr::gfx
         glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, texture, 0);
     }
 
-    void Framebuffer::AttachCubemapFace(GLuint texture, int face, GLenum attachment) const noexcept
+    void Framebuffer::AttachCubemapFace(GLuint texture, int face, GLenum attachment, int mip_level) const noexcept
     {
         glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
         glFramebufferTexture2D(GL_FRAMEBUFFER, attachment,
                                GL_TEXTURE_CUBE_MAP_POSITIVE_X + face,
-                               texture, 0);
+                               texture, mip_level);
     }
 
     void Framebuffer::AttachDepthTexture(GLuint texture) const noexcept

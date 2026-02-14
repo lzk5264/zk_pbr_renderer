@@ -1,5 +1,5 @@
 #include <zk_pbr/gfx/texture_cubemap.h>
-#include <zk_pbr/gfx/texture.h>
+#include <zk_pbr/gfx/image_loader.h>
 #include <zk_pbr/gfx/shader.h>
 #include <zk_pbr/gfx/framebuffer.h>
 #include <zk_pbr/gfx/uniform_buffer.h>
@@ -26,104 +26,217 @@ namespace zk_pbr::gfx
 
         // 共享的 Cubemap 渲染顶点着色器
         const char *kCubemapVS = R"(
-#version 460 core
-layout(location = 0) in vec3 a_Position;
-out vec3 v_LocalPos;
+            #version 460 core
+            layout(location = 0) in vec3 a_Position;
+            out vec3 v_LocalPos;
 
-layout(std140, binding = 15) uniform CaptureMatrices {
-    mat4 u_View;
-    mat4 u_Projection;
-};
+            layout(std140, binding = 15) uniform CaptureMatrices {
+                mat4 u_View;
+                mat4 u_Projection;
+            };
 
-void main() {
-    v_LocalPos = a_Position;
-    gl_Position = u_Projection * u_View * vec4(a_Position, 1.0);
-}
-)";
+            void main() {
+                v_LocalPos = a_Position;
+                gl_Position = u_Projection * u_View * vec4(a_Position, 1.0);
+            }
+            )";
 
         // Equirectangular -> Cubemap 转换片段着色器
         const char *kEquirectToCubemapFS = R"(
-#version 460 core
-in vec3 v_LocalPos;
-out vec4 FragColor;
+            #version 460 core
+            in vec3 v_LocalPos;
+            out vec4 FragColor;
 
-layout(binding = 0) uniform sampler2D u_EquirectMap;
+            layout(binding = 0) uniform sampler2D u_EquirectMap;
 
-const float PI = 3.14159265359;
+            const float PI = 3.14159265359;
 
-void main() {
-    vec3 dir = normalize(v_LocalPos);
-    
-    // 球面坐标转 UV
-    float phi = atan(dir.z, dir.x);
-    float theta = asin(dir.y);
-    vec2 uv = vec2(phi / (2.0 * PI) + 0.5, theta / PI + 0.5);
-    
-    FragColor = vec4(texture(u_EquirectMap, uv).rgb, 1.0);
-}
-)";
+            void main() {
+                vec3 dir = normalize(v_LocalPos);
+                
+                // 球面坐标转 UV
+                float phi = atan(dir.z, dir.x);
+                float theta = asin(dir.y);
+                vec2 uv = vec2(phi / (2.0 * PI) + 0.5, theta / PI + 0.5);
+                
+                FragColor = vec4(texture(u_EquirectMap, uv).rgb, 1.0);
+            }
+            )";
 
         // Irradiance 卷积片段着色器 (蒙特卡洛采样)
         const char *kIrradianceFS = R"(
-#version 460 core
-in vec3 v_LocalPos;
-out vec4 FragColor;
+            #version 460 core
+            in vec3 v_LocalPos;
+            out vec4 FragColor;
 
-layout(binding = 0) uniform samplerCube u_EnvMap;
-uniform int u_SampleCount;
+            layout(binding = 0) uniform samplerCube u_EnvMap;
+            uniform int u_SampleCount;
 
-const float PI = 3.14159265359;
+            const float PI = 3.14159265359;
 
-// PCG 随机数生成
-uint PCGHash(uint x) {
-    x ^= x >> 16;
-    x *= 0x7feb352du;
-    x ^= x >> 15;
-    x *= 0x846ca68bu;
-    x ^= x >> 16;
-    return x;
-}
+            // PCG 随机数生成
+            uint PCGHash(uint x) {
+                x ^= x >> 16;
+                x *= 0x7feb352du;
+                x ^= x >> 15;
+                x *= 0x846ca68bu;
+                x ^= x >> 16;
+                return x;
+            }
 
-float RandomFloat(inout uint seed) {
-    seed = PCGHash(seed);
-    return float(seed) / float(0xffffffffu);
-}
+            float RandomFloat(inout uint seed) {
+                seed = PCGHash(seed);
+                return float(seed) / float(0xffffffffu);
+            }
 
-// 余弦加权半球采样
-vec3 CosineSampleHemisphere(float u1, float u2) {
-    float r = sqrt(u1);
-    float theta = 2.0 * PI * u2;
-    return vec3(r * cos(theta), r * sin(theta), sqrt(1.0 - u1));
-}
+            // 余弦加权半球采样
+            vec3 CosineSampleHemisphere(float u1, float u2) {
+                float r = sqrt(u1);
+                float theta = 2.0 * PI * u2;
+                return vec3(r * cos(theta), r * sin(theta), sqrt(1.0 - u1));
+            }
 
-void main() {
-    vec3 N = normalize(v_LocalPos);
-    
-    // 构建 TBN 矩阵
-    vec3 up = abs(N.y) < 0.999 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
-    vec3 right = normalize(cross(up, N));
-    up = cross(N, right);
-    
-    vec3 irradiance = vec3(0.0);
-    uint seed = uint(gl_FragCoord.x * 1973.0 + gl_FragCoord.y * 9277.0);
-    
-    for (int i = 0; i < u_SampleCount; i++) {
-        float u1 = RandomFloat(seed);
-        float u2 = RandomFloat(seed);
-        
-        vec3 localDir = CosineSampleHemisphere(u1, u2);
-        vec3 worldDir = localDir.x * right + localDir.y * up + localDir.z * N;
-        
-        irradiance += texture(u_EnvMap, worldDir).rgb;
-    }
-    
-    // PDF = cos(theta) / PI, 所以结果要乘以 PI
-    FragColor = vec4(PI * irradiance / float(u_SampleCount), 1.0);
-}
-)";
+            void main() {
+                vec3 N = normalize(v_LocalPos);
+                
+                // 构建 TBN 矩阵
+                vec3 up = abs(N.y) < 0.999 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+                vec3 right = normalize(cross(up, N));
+                up = cross(N, right);
+                
+                vec3 irradiance = vec3(0.0);
+                uint seed = uint(gl_FragCoord.x * 1973.0 + gl_FragCoord.y * 9277.0);
+                
+                for (int i = 0; i < u_SampleCount; i++) {
+                    float u1 = RandomFloat(seed);
+                    float u2 = RandomFloat(seed);
+                    
+                    vec3 localDir = CosineSampleHemisphere(u1, u2);
+                    vec3 worldDir = localDir.x * right + localDir.y * up + localDir.z * N;
+                    
+                    irradiance += texture(u_EnvMap, worldDir).rgb;
+                }
+                
+                // PDF = cos(theta) / PI, 所以结果要乘以 PI
+                FragColor = vec4(PI * irradiance / float(u_SampleCount), 1.0);
+            }
+            )";
+
+        const char *kPrefilteredEnvMapFS = R"(
+                #version 460 core
+
+                // ===== Fragment Inputs =====
+                in vec3 v_LocalPos; 
+
+                // ===== Fragment Outputs =====
+                layout(location = 0) out vec4 o_Color;
+
+                // ===== Resources (keep bindings stable across shaders) =====
+
+                layout(binding = 0) uniform samplerCube u_EnvMap;  
+
+                // ===== Uniforms (small scalar params; use UBO if grows) =====
+                layout(location = 0) uniform int u_SampleCount;
+                layout(location = 1) uniform float u_Roughness;
+
+                // ===== Helpers =====
+
+                const float PI = 3.1415926;
+
+
+                // Hammersley
+                float RadicalInverse_VdC(uint bits) 
+                {
+                    bits = (bits << 16u) | (bits >> 16u);
+                    bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+                    bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+                    bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+                    bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
+                    return float(bits) * 2.3283064365386963e-10; // / 0x100000000
+                }
+
+                vec2 Hammersley(uint i, uint N)
+                {
+                    return vec2(float(i)/float(N + 1), RadicalInverse_VdC(i));
+                } 
+
+                // coord base N -> (b1, b2, N)
+                void GetONB(in vec3 n, out vec3 b1, out vec3 b2)
+                {
+                    float s = mix(-1.0, 1.0, step(0.0, n.z)); // n.z>=0 -> 1, 否则 -1
+
+                    float a = -1.0 / (s + n.z);
+                    float b = n.x * n.y * a;
+
+                    b1 = vec3(1.0 + s * n.x * n.x * a, s * b, -s * n.x);
+                    b2 = vec3(b, s + n.y * n.y * a,  -n.y);
+                }
+
+                vec3 ImportanceSampleGGX(vec2 Xi, float a2, vec3 N)
+                {
+                    float phi = 2 * PI * Xi.x;
+                    float cos_theta = sqrt((1 - Xi.y) / (1 + (a2 - 1) * Xi.y));
+                    float sin_theta = sqrt(1 - cos_theta * cos_theta);
+                    
+                    vec3 H = vec3(sin_theta * cos(phi), sin_theta * sin(phi), cos_theta);
+
+                    vec3 b1, b2;
+                    GetONB(N, b1, b2);
+                    // TS -> WS
+                    return b1 * H.x + b2 * H.y + N * H.z;
+                }
+
+                void main()
+                {
+                    vec3 N = normalize(v_LocalPos);
+
+                    // 完美镜面反射，无需多次采样
+                    if (u_Roughness < 1e-4) 
+                    {
+                        o_Color = vec4(texture(u_EnvMap, N).rgb, 1.0);
+                        return;
+                    }
+
+                    // mipmap filtered samples
+                    ivec2 env_map_size = textureSize(u_EnvMap, 0);
+                    int W = env_map_size.x;
+                    float Omega_p = 4.0 * PI / (6.0 * float(W) * float(W));
+                    int mipCount = textureQueryLevels(u_EnvMap);
+                    float maxMip = float(mipCount - 1);
+
+
+
+                    float total_weight = 0.0;
+                    vec3 sum = vec3(0.0);
+
+                    float a  = u_Roughness * u_Roughness;   // alpha
+                    float a2 = a * a;                        // alpha * alpha
+                    for (int i = 0; i < u_SampleCount; i ++ )
+                    {
+                        vec2 Xi = Hammersley(i, u_SampleCount);
+                        vec3 H = ImportanceSampleGGX(Xi, a2, N);
+                        vec3 L = reflect(-N, H);
+                        float NdotL = max(0.0, dot(N, L));
+                        // 跳过背面采样
+                        if (NdotL > 0.0)
+                        {
+                            float NdotH = max(0.0, dot(N, H));
+                            float denom = NdotH * NdotH * (a2 - 1.0) + 1.0;
+                            float pdf_li = a2 / (4.0 * PI * denom * denom);
+                            float Omega_s = 1.0 / (float(u_SampleCount) * pdf_li + 1e-6);
+                            float mip_level = clamp(0.5 * log2(Omega_s / Omega_p), 0.0, maxMip);
+                            sum += textureLod(u_EnvMap, L, mip_level).rgb * NdotL;
+                            total_weight += NdotL;
+                        }
+                    }
+                        
+                    float invW = 1.0 / max(total_weight, 1e-6);
+                    o_Color = vec4(sum * invW, 1.0);
+                }
+            )";
 
         // 渲染到 Cubemap 的 6 个面
-        void RenderToCubemapFaces(TextureCubemap &target, Shader &shader, int size,
+        void RenderToCubemapFaces(TextureCubemap &target, Shader &shader, int size, int mip_level = 0,
                                   void (*pre_render)(Shader &, int) = nullptr)
         {
             Framebuffer fbo(size, size);
@@ -143,7 +256,7 @@ void main() {
 
             for (int i = 0; i < 6; ++i)
             {
-                fbo.AttachCubemapFace(target.GetID(), i);
+                fbo.AttachCubemapFace(target.GetID(), i, GL_COLOR_ATTACHMENT0, mip_level);
 
                 CameraUBOData data;
                 data.view = kCubemapViews[i];
@@ -176,13 +289,11 @@ void main() {
 
         glBindTexture(GL_TEXTURE_CUBE_MAP, id_);
 
-        // 为 6 个面分配存储
-        for (int i = 0; i < 6; ++i)
-        {
-            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0,
-                         spec.internal_format, size, size, 0,
-                         spec.format, spec.data_type, nullptr);
-        }
+        int mip_levels = spec.generate_mipmaps
+                             ? static_cast<int>(std::floor(std::log2(size))) + 1
+                             : 1;
+
+        glTexStorage2D(GL_TEXTURE_CUBE_MAP, mip_levels, spec.internal_format, size, size);
 
         ApplyParameters();
         glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
@@ -292,6 +403,44 @@ void main() {
         RenderToCubemapFaces(irradiance, irradiance_shader, irradiance_size);
 
         return irradiance;
+    }
+
+    TextureCubemap TextureCubemap::PrefilteredEnvMap(
+        const TextureCubemap &source,
+        int size,
+        int sample_count,
+        const TextureSpec &spec)
+    {
+        if (!source.IsValid())
+        {
+            throw TextureException("Source cubemap is invalid");
+        }
+
+        // 1. 创建 Shader
+        Shader prefilered_shader = Shader::CreateFromSource(kCubemapVS, kPrefilteredEnvMapFS);
+        // 2. 创建目标 Cubemap
+        TextureCubemap prefiltered_env_map(size, spec);
+
+        // 3. 绑定源 Cubemap
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, source.GetID());
+
+        // 4. 设置采样数并渲染
+        prefilered_shader.Use();
+        prefilered_shader.SetInt("u_SampleCount", sample_count);
+
+        int max_mip_levels = static_cast<int>(std::floor(std::log2(size) + 1));
+        // size=256 → log2(256)=8 → 8+1=9 级 (256, 128, 64, 32, 16, 8, 4, 2, 1)
+
+        for (int mip = 0; mip < max_mip_levels; mip++)
+        {
+            float roughness = static_cast<float>(mip) / static_cast<float>(max_mip_levels - 1);
+            int mip_size = size >> mip;
+            prefilered_shader.SetFloat("u_Roughness", roughness);
+            RenderToCubemapFaces(prefiltered_env_map, prefilered_shader, mip_size, mip);
+        }
+
+        return prefiltered_env_map;
     }
 
     void TextureCubemap::Bind(unsigned int slot) const

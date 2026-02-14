@@ -42,6 +42,13 @@ namespace zk_pbr::gfx
             int sample_count = 512,
             const TextureSpec &spec = TexturePresets::IrradianceMap());
 
+        // 从环境 Cubemap 生成 Prefiltered Env Map
+        static TextureCubemap PrefilteredEnvMap(
+            const TextureCubemap &source,
+            int size = 256,
+            int sample_count = 1024,
+            const TextureSpec &spec = TexturePresets::PrefilteredEnvMap());
+
         void Bind(unsigned int slot = 0) const;
         void GenerateMipmaps();
 

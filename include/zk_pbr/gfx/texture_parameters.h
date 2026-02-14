@@ -1,9 +1,24 @@
 #pragma once
 
 #include <glad/glad.h>
+#include <stdexcept>
+#include <string>
 
 namespace zk_pbr::gfx
 {
+
+    // ============================================================================
+    // 纹理异常类
+    // ============================================================================
+
+    class TextureException : public std::runtime_error
+    {
+    public:
+        explicit TextureException(const std::string &message)
+            : std::runtime_error(message)
+        {
+        }
+    };
 
     // ============================================================================
     // 纹理参数枚举 (类型安全的 OpenGL 常量封装)
@@ -86,6 +101,12 @@ namespace zk_pbr::gfx
             spec.mag_filter = TextureFilter::Linear;
             spec.generate_mipmaps = false;
             return spec;
+        }
+
+        // Prefiltered Env Map (需要 mipmap)
+        inline TextureSpec PrefilteredEnvMap()
+        {
+            return HDRCubemap();
         }
 
     } // namespace TexturePresets

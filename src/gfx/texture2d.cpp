@@ -1,5 +1,4 @@
 #include <zk_pbr/gfx/texture2d.h>
-#include <zk_pbr/gfx/texture.h>
 
 namespace zk_pbr::gfx
 {

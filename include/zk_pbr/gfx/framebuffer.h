@@ -44,7 +44,7 @@ namespace zk_pbr::gfx
         // @param texture: Cubemap 纹理 ID
         // @param face: GL_TEXTURE_CUBE_MAP_POSITIVE_X, ... (0-5)
         // @param attachment: GL_COLOR_ATTACHMENT0, ...
-        void AttachCubemapFace(GLuint texture, int face, GLenum attachment = GL_COLOR_ATTACHMENT0) const noexcept;
+        void AttachCubemapFace(GLuint texture, int face, GLenum attachment = GL_COLOR_ATTACHMENT0, int mip_level = 0) const noexcept;
 
         // 附加深度纹理
         void AttachDepthTexture(GLuint texture) const noexcept;

@@ -139,6 +139,14 @@ int main()
             512,                                   // 采样数
             gfx::TexturePresets::IrradianceMap()); // 使用 Irradiance 专用规格
 
+        // === 预处理：从环境cubemap 生成 prefiltered map ===
+
+        auto prefiltered_env_map = gfx::TextureCubemap::PrefilteredEnvMap(
+            env_cubemap,
+            256,
+            1024,
+            gfx::TexturePresets::PrefilteredEnvMap());
+
         // 时间管理
         float delta_time = 0.0f;
         float last_frame = 0.0f;
@@ -178,7 +186,7 @@ int main()
             // skybox
             glDepthFunc(GL_LEQUAL);
             skybox_shader.Use();
-            zk_pbr::gfx::Shader::BindTextureToUnit(irradiance_cubemap.GetID(), 0, GL_TEXTURE_CUBE_MAP);
+            zk_pbr::gfx::Shader::BindTextureToUnit(prefiltered_env_map.GetID(), 0, GL_TEXTURE_CUBE_MAP);
             cube.Draw();
             glDepthFunc(GL_LESS);
 

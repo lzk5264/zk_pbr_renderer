@@ -25,7 +25,7 @@ set(SOURCES
     ${CMAKE_SOURCE_DIR}/src/gfx/shader.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/mesh.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/vertex_layout.cpp
-    ${CMAKE_SOURCE_DIR}/src/gfx/texture.cpp
+    ${CMAKE_SOURCE_DIR}/src/gfx/image_loader.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/texture2d.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/texture_cubemap.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/camera.cpp

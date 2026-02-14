@@ -6,7 +6,7 @@
 #define TINYEXR_IMPLEMENTATION
 #include <tinyexr/tinyexr.h>
 
-#include <zk_pbr/gfx/texture.h>
+#include <zk_pbr/gfx/image_loader.h>
 
 #include <cstring>
 #include <vector>
@@ -29,7 +29,6 @@ namespace zk_pbr::gfx
     {
         if (this != &other)
         {
-            // 释放自己的资源
             if (pixels)
             {
                 free(pixels);
@@ -56,14 +55,56 @@ namespace zk_pbr::gfx
         }
     }
 
+    // ========== LDRImageData 实现 ==========
+
+    LDRImageData::LDRImageData(LDRImageData &&other) noexcept
+        : pixels(other.pixels), width(other.width), height(other.height), channels(other.channels)
+    {
+        other.pixels = nullptr;
+        other.width = 0;
+        other.height = 0;
+        other.channels = 0;
+    }
+
+    LDRImageData &LDRImageData::operator=(LDRImageData &&other) noexcept
+    {
+        if (this != &other)
+        {
+            if (pixels)
+            {
+                stbi_image_free(pixels);
+            }
+
+            pixels = other.pixels;
+            width = other.width;
+            height = other.height;
+            channels = other.channels;
+
+            other.pixels = nullptr;
+            other.width = 0;
+            other.height = 0;
+            other.channels = 0;
+        }
+        return *this;
+    }
+
+    LDRImageData::~LDRImageData()
+    {
+        if (pixels)
+        {
+            stbi_image_free(pixels);
+        }
+    }
+
     // ========== HDR 图像加载 ==========
 
     HDRImageData LoadHDRImage(const std::string &path, bool flip_vertically)
     {
         HDRImageData data;
 
-        bool is_exr = (path.find(".exr") != std::string::npos ||
-                       path.find(".EXR") != std::string::npos);
+        bool is_exr = (path.size() >= 4 &&
+                       (path.substr(path.size() - 4) == ".exr" ||
+                        path.substr(path.size() - 4) == ".EXR"));
 
         if (is_exr)
         {
@@ -76,7 +117,7 @@ namespace zk_pbr::gfx
                 std::string error_msg = err ? err : "Unknown error";
                 if (err)
                     FreeEXRErrorMessage(err);
-                throw TextureException("Failed to load EXR: " + path + "\n" + error_msg);
+                throw ImageLoadException("Failed to load EXR: " + path + "\n" + error_msg);
             }
 
             data.channels = 4; // EXR 总是加载为 RGBA
@@ -105,8 +146,32 @@ namespace zk_pbr::gfx
 
             if (!data.pixels)
             {
-                throw TextureException("Failed to load HDR: " + path + "\n" + stbi_failure_reason());
+                throw ImageLoadException("Failed to load HDR: " + path + "\n" + stbi_failure_reason());
             }
+        }
+
+        return data;
+    }
+
+    // ========== LDR 图像加载 ==========
+
+    LDRImageData LoadLDRImage(const std::string &path, bool flip_vertically, int desired_channels)
+    {
+        LDRImageData data;
+
+        stbi_set_flip_vertically_on_load(flip_vertically);
+
+        data.pixels = stbi_load(path.c_str(), &data.width, &data.height, &data.channels, desired_channels);
+
+        if (!data.pixels)
+        {
+            throw ImageLoadException("Failed to load image: " + path + "\n" + stbi_failure_reason());
+        }
+
+        // 如果指定了 desired_channels，更新 channels
+        if (desired_channels > 0)
+        {
+            data.channels = desired_channels;
         }
 
         return data;
