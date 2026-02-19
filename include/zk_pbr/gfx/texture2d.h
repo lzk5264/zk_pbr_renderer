@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include <glad/glad.h>
 
 #include <zk_pbr/gfx/texture_parameters.h>
@@ -25,7 +27,16 @@ namespace zk_pbr::gfx
         Texture2D(Texture2D &&other) noexcept;
         Texture2D &operator=(Texture2D &&other) noexcept;
 
+        static Texture2D ComputeDFG(
+            int size = 512,
+            int sample_count = 1024,
+            bool is_multiscatter = true,
+            const TextureSpec &spec = TexturePresets::DFGLUT());
+
         void Bind(unsigned int slot = 0) const;
+
+        // DEBUG: 将纹理导出为 PPM 图片（临时调试用，后续删除）
+        void SaveToPPM(const std::string &path) const;
 
         GLuint GetID() const { return id_; }
         int GetWidth() const { return width_; }

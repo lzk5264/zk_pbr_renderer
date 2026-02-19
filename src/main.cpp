@@ -147,6 +147,9 @@ int main()
             1024,
             gfx::TexturePresets::PrefilteredEnvMap());
 
+        auto dfg_lut = gfx::Texture2D::ComputeDFG(512, 1024);
+        dfg_lut.SaveToPPM("dfg_lut_ms_debug.ppm");
+
         // 时间管理
         float delta_time = 0.0f;
         float last_frame = 0.0f;

@@ -39,7 +39,7 @@ namespace zk_pbr::gfx
     };
 
     // ============================================================================
-    // 纹理规格 (简化版，只保留 IBL 需要的)
+    // 纹理规格
     // ============================================================================
 
     struct TextureSpec
@@ -56,7 +56,7 @@ namespace zk_pbr::gfx
     };
 
     // ============================================================================
-    // 常用预设 (只保留 IBL 需要的)
+    // 常用预设
     // ============================================================================
 
     namespace TexturePresets
@@ -107,6 +107,19 @@ namespace zk_pbr::gfx
         inline TextureSpec PrefilteredEnvMap()
         {
             return HDRCubemap();
+        }
+
+        inline TextureSpec DFGLUT()
+        {
+            TextureSpec spec;
+            spec.internal_format = GL_RG16F;
+            spec.format = GL_RG;
+            spec.data_type = GL_FLOAT;
+            spec.wrap = TextureWrap::ClampToEdge;
+            spec.min_filter = TextureFilter::Linear;
+            spec.mag_filter = TextureFilter::Linear;
+            spec.generate_mipmaps = false;
+            return spec;
         }
 
     } // namespace TexturePresets
