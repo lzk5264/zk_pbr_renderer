@@ -66,59 +66,104 @@ namespace zk_pbr::gfx
         // Irradiance 卷积片段着色器 (蒙特卡洛采样)
         const char *kIrradianceFS = R"(
             #version 460 core
-            in vec3 v_LocalPos;
-            out vec4 FragColor;
 
-            layout(binding = 0) uniform samplerCube u_EnvMap;
-            uniform int u_SampleCount;
+            in VS_OUT {
+                vec3 uv;
+            } fs_in;
+
+            layout(location = 0) out vec4 o_Color;
+            layout(binding = 0) uniform samplerCube u_Cubemap;
+
+            layout(location = 0) uniform int u_Samplers;
+
 
             const float PI = 3.14159265359;
+            const float PiOver4 = 0.7853981633974483; // Π / 4
+            const float PiOver2 = 1.5707963267948966; // Π / 2
 
-            // PCG 随机数生成
-            uint PCGHash(uint x) {
-                x ^= x >> 16;
-                x *= 0x7feb352du;
-                x ^= x >> 15;
-                x *= 0x846ca68bu;
-                x ^= x >> 16;
-                return x;
+
+            // Hammersley
+            float RadicalInverse_VdC(uint bits) 
+            {
+                bits = (bits << 16u) | (bits >> 16u);
+                bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+                bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+                bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+                bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
+                return float(bits) * 2.3283064365386963e-10; // / 0x100000000
             }
 
-            float RandomFloat(inout uint seed) {
-                seed = PCGHash(seed);
-                return float(seed) / float(0xffffffffu);
+            vec2 Hammersley(uint i, uint N)
+            {
+                return vec2(float(i)/float(N + 1), RadicalInverse_VdC(i));
+            } 
+
+
+            // 输入 n 必须是单位向量
+            // 输出 b1, b2 与 n 构成正交基：{b1, b2, n}
+            void GetONB(in vec3 n, out vec3 b1, out vec3 b2)
+            {
+                float s = mix(-1.0, 1.0, step(0.0, n.z)); // n.z>=0 -> 1, 否则 -1
+
+                float a = -1.0 / (s + n.z);
+                float b = n.x * n.y * a;
+
+                b1 = vec3(1.0 + s * n.x * n.x * a, s * b, -s * n.x);
+                b2 = vec3(b, s + n.y * n.y * a,  -n.y);
             }
 
-            // 余弦加权半球采样
-            vec3 CosineSampleHemisphere(float u1, float u2) {
-                float r = sqrt(u1);
-                float theta = 2.0 * PI * u2;
-                return vec3(r * cos(theta), r * sin(theta), sqrt(1.0 - u1));
-            }
+            vec2 SampleUniformDiskConcentric(vec2 u)
+            {
+                vec2 uOffset = 2 * u - vec2(1.0f, 1.0f);
 
-            void main() {
-                vec3 N = normalize(v_LocalPos);
-                
-                // 构建 TBN 矩阵
-                vec3 up = abs(N.y) < 0.999 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
-                vec3 right = normalize(cross(up, N));
-                up = cross(N, right);
-                
-                vec3 irradiance = vec3(0.0);
-                uint seed = uint(gl_FragCoord.x * 1973.0 + gl_FragCoord.y * 9277.0);
-                
-                for (int i = 0; i < u_SampleCount; i++) {
-                    float u1 = RandomFloat(seed);
-                    float u2 = RandomFloat(seed);
-                    
-                    vec3 localDir = CosineSampleHemisphere(u1, u2);
-                    vec3 worldDir = localDir.x * right + localDir.y * up + localDir.z * N;
-                    
-                    irradiance += texture(u_EnvMap, worldDir).rgb;
+                if (uOffset.x == 0 && uOffset.y == 0)
+                    return vec2(0.0f, 0.0f);
+
+
+                float theta, r;
+                if (abs(uOffset.x) > abs(uOffset.y)) 
+                {
+                    r = uOffset.x;
+                    theta = PiOver4 * (uOffset.y / uOffset.x);
+                } 
+                else 
+                {
+                    r = uOffset.y;
+                    theta = PiOver2 - PiOver4 * (uOffset.x / uOffset.y);
                 }
-                
-                // PDF = cos(theta) / PI, 所以结果要乘以 PI
-                FragColor = vec4(PI * irradiance / float(u_SampleCount), 1.0);
+                return r * vec2(cos(theta), sin(theta));
+            }
+
+            vec3 SampleCosineHemisphere(vec2 u)
+            {
+                vec2 d = SampleUniformDiskConcentric(u);
+                float z = sqrt(1 - d.x * d.x - d.y * d.y);
+                return vec3(d.x, d.y, z);
+            }
+
+
+            void main()
+            {
+                uvec2 pix = uvec2(gl_FragCoord.xy);
+                uint frame = 0u; // 如果你有时间累积/降噪，就传进来；没有就保持 0
+
+                vec3 N = normalize(fs_in.uv);
+                vec3 B1, B2;
+                GetONB(N, B1, B2);
+
+
+                vec3 sum = vec3(0.0);
+                for (int i = 0; i < u_Samplers; i ++)
+                {
+                    vec2 Xi = Hammersley(i, u_Samplers);
+                    vec3 L = SampleCosineHemisphere(Xi);
+                    L = normalize(L.x * B1 + L.y * B2 + L.z * N);
+
+                    vec3 Li = texture(u_Cubemap, L).rgb;
+                    sum += Li;
+                }
+
+                o_Color = vec4(PI * sum / float(u_Samplers), 1.0);
             }
             )";
 

@@ -9,31 +9,27 @@ layout(binding = 0) uniform samplerCube u_Cubemap;
 
 layout(location = 0) uniform int u_Samplers;
 
+
+const float PI = 3.14159265359;
 const float PiOver4 = 0.7853981633974483; // Π / 4
 const float PiOver2 = 1.5707963267948966; // Π / 2
 
 
-// 32-bit hash (PCG-ish mix)
-uint Hash(uint x) {
-    x ^= x >> 16;
-    x *= 0x7feb352du;
-    x ^= x >> 15;
-    x *= 0x846ca68bu;
-    x ^= x >> 16;
-    return x;
-}
-
-float UintTo01(uint x) {
-    // 取 24-bit mantissa，映射到 [0,1)
-    return float(x & 0x00ffffffu) / float(0x01000000u);
-}
-
-vec2 Rand2(in uvec2 pixel, int sampleIdx, uint frameIdx)
+// Hammersley
+float RadicalInverse_VdC(uint bits) 
 {
-    uint s0 = Hash(pixel.x ^ (pixel.y * 1664525u) ^ uint(sampleIdx) ^ (frameIdx * 1013904223u));
-    uint s1 = Hash(s0 + 0x9e3779b9u); // decorrelate
-    return vec2(UintTo01(s0), UintTo01(s1));
+    bits = (bits << 16u) | (bits >> 16u);
+    bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+    bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+    bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+    bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
+    return float(bits) * 2.3283064365386963e-10; // / 0x100000000
 }
+
+vec2 Hammersley(uint i, uint N)
+{
+    return vec2(float(i)/float(N + 1), RadicalInverse_VdC(i));
+} 
 
 
 // 输入 n 必须是单位向量
@@ -92,13 +88,13 @@ void main()
     vec3 sum = vec3(0.0);
     for (int i = 0; i < u_Samplers; i ++)
     {
-        vec2 u = Rand2(pix, i, frame);
-        vec3 L = SampleCosineHemisphere(u);
+        vec2 Xi = Hammersley(i, u_Samplers);
+        vec3 L = SampleCosineHemisphere(Xi);
         L = normalize(L.x * B1 + L.y * B2 + L.z * N);
 
         vec3 Li = texture(u_Cubemap, L).rgb;
         sum += Li;
     }
 
-    o_Color = vec4(3.14159265359 * sum / float(u_Samplers), 1.0);
+    o_Color = vec4(PI * sum / float(u_Samplers), 1.0);
 }
