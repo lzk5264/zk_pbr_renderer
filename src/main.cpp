@@ -14,7 +14,7 @@
 #include <zk_pbr/gfx/camera_controller.h>
 
 #include <zk_pbr/gfx/uniform_buffer.h>
-#include <zk_pbr/gfx/ubo_definitions.h>
+#include <zk_pbr/gfx/render_constants.h>
 #include <zk_pbr/gfx/framebuffer.h>
 
 // 全局相机控制器指针（用于鼠标滚轮回调）

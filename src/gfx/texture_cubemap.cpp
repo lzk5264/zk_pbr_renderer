@@ -3,7 +3,7 @@
 #include <zk_pbr/gfx/shader.h>
 #include <zk_pbr/gfx/framebuffer.h>
 #include <zk_pbr/gfx/uniform_buffer.h>
-#include <zk_pbr/gfx/ubo_definitions.h>
+#include <zk_pbr/gfx/render_constants.h>
 #include <zk_pbr/gfx/mesh.h>
 
 #include <glm/glm.hpp>

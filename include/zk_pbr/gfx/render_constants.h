@@ -6,6 +6,25 @@ namespace zk_pbr::gfx
 {
 
     // ============================================================================
+    // texture slot（全局约定）
+    // ============================================================================
+
+    namespace texture_slot
+    {
+        // 材质级 (Material::Bind() 负责)
+        constexpr unsigned int kAlbedo = 0;
+        constexpr unsigned int kNormal = 1;
+        constexpr unsigned int kMetallicRoughness = 2;
+        constexpr unsigned int kAO = 3;
+        constexpr unsigned int kEmissive = 4;
+
+        // 场景级 (SceneEnvironment::Bind() 负责，每帧绑一次)
+        constexpr unsigned int kIrradianceMap = 5;
+        constexpr unsigned int kPrefilteredEnvMap = 6;
+        constexpr unsigned int kDFGLUT = 7;
+    }
+
+    // ============================================================================
     // UBO Binding Points（全局约定）
     // ============================================================================
     namespace ubo_binding
@@ -43,8 +62,9 @@ namespace zk_pbr::gfx
     // ============================================================================
     struct ObjectUBOData
     {
-        glm::mat4 model; // offset 0, size 64, align 16
+        glm::mat4 model;       // offset 0, size 64, align 16
+        glm::mat4 model_inv_t; // offset 64, size 64, align 16
     };
-    static_assert(sizeof(ObjectUBOData) == 64, "ObjectUBOData size mismatch (expected 64 bytes for std140)");
+    static_assert(sizeof(ObjectUBOData) == 128, "ObjectUBOData size mismatch (expected 128 bytes for std140)");
 
 } // namespace zk_pbr::gfx
