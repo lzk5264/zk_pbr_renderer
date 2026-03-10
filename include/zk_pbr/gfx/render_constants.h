@@ -44,14 +44,16 @@ namespace zk_pbr::gfx
     //   layout(std140, binding = 0) uniform CameraUBO {
     //       mat4 u_View;
     //       mat4 u_Proj;
+    //       vec4 u_CameraPosWS;
     //   };
     // ============================================================================
     struct CameraUBOData
     {
-        glm::mat4 view;       // offset 0,  size 64, align 16
-        glm::mat4 projection; // offset 64, size 64, align 16
+        glm::mat4 view;          // offset 0,   size 64, align 16
+        glm::mat4 projection;    // offset 64,  size 64, align 16
+        glm::vec4 camera_pos_ws; // offset 128, size 16, align 16（用 vec4 保证 std140 对齐）
     };
-    static_assert(sizeof(CameraUBOData) == 128, "CameraUBOData size mismatch (expected 128 bytes for std140)");
+    static_assert(sizeof(CameraUBOData) == 144, "CameraUBOData size mismatch (expected 144 bytes for std140)");
 
     // ============================================================================
     // 对象变换 UBO 数据结构
@@ -66,5 +68,17 @@ namespace zk_pbr::gfx
         glm::mat4 model_inv_t; // offset 64, size 64, align 16
     };
     static_assert(sizeof(ObjectUBOData) == 128, "ObjectUBOData size mismatch (expected 128 bytes for std140)");
+
+    // ============================================================================
+    // Material Uniform Locations（explicit layout location，与 pbr_shading_fs.frag 对应）
+    // 修改此处时，必须同步修改 shader 中的 layout(location = N)
+    // ============================================================================
+    namespace uniform_location
+    {
+        constexpr int kBaseColorFactor = 0; // vec4  u_BaseColor
+        constexpr int kMetallicFactor = 1;  // float u_MetallicFactor
+        constexpr int kRoughnessFactor = 2; // float u_RoughnessFactor
+        constexpr int kEmissiveFactor = 3;  // vec3  u_EmissiveFactor
+    }
 
 } // namespace zk_pbr::gfx

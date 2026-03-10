@@ -9,17 +9,21 @@ namespace zk_pbr::gfx
     {
         SceneEnvironment se;
 
+        // 依次构建 IBL 资源链，每一步都是前一步的输入
+        // 顺序很重要：env_cubemap → irradiance/prefiltered（都需要 env_cubemap）
         se.env_cubemap_ = TextureCubemap::LoadFromEquirectangular(
             hdr_path,
             config.env_cubemap_size,
             TexturePresets::HDRCubemap());
 
+        // 漫反射项：低分辨率卷积
         se.irradiance_ = TextureCubemap::ConvolveIrradiance(
             se.env_cubemap_,
             config.irradiance_size,
             config.irradiance_samples,
             TexturePresets::IrradianceMap());
 
+        // 镜面反射项
         se.prefiltered_ = TextureCubemap::PrefilteredEnvMap(
             se.env_cubemap_,
             config.prefiltered_size,

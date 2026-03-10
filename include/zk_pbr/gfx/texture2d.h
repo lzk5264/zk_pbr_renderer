@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include <glad/glad.h>
@@ -27,6 +28,10 @@ namespace zk_pbr::gfx
         Texture2D(Texture2D &&other) noexcept;
         Texture2D &operator=(Texture2D &&other) noexcept;
 
+        // 创建 1×1 纯色纹理，用于材质缺图时的默认回退
+        // r/g/b/a 范围 [0, 255]
+        static Texture2D CreateSolid(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255);
+
         static Texture2D ComputeDFG(
             int size = 512,
             int sample_count = 1024,
@@ -34,9 +39,6 @@ namespace zk_pbr::gfx
             const TextureSpec &spec = TexturePresets::DFGLUT());
 
         void Bind(unsigned int slot = 0) const;
-
-        // DEBUG: 将纹理导出为 PPM 图片（临时调试用，后续删除）
-        void SaveToPPM(const std::string &path) const;
 
         GLuint GetID() const { return id_; }
         int GetWidth() const { return width_; }

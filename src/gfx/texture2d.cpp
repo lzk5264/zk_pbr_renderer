@@ -309,40 +309,32 @@ namespace zk_pbr::gfx
         return dfg_lut_tex;
     }
 
+    Texture2D Texture2D::CreateSolid(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+    {
+        Texture2D tex;
+        tex.width_  = 1;
+        tex.height_ = 1;
+
+        glGenTextures(1, &tex.id_);
+        glBindTexture(GL_TEXTURE_2D, tex.id_);
+
+        const uint8_t pixel[4] = {r, g, b, a};
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+
+        // 1×1 纹理不需要 mipmap，使用最简过滤
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+        return tex;
+    }
+
     void Texture2D::Bind(unsigned int slot) const
     {
         glActiveTexture(GL_TEXTURE0 + slot);
         glBindTexture(GL_TEXTURE_2D, id_);
-    }
-
-    // DEBUG: RG16F -> PPM (R=dfg1, G=dfg2, B=0)
-    void Texture2D::SaveToPPM(const std::string &path) const
-    {
-        if (!IsValid())
-            return;
-
-        int w = width_, h = height_;
-        std::vector<float> pixels(w * h * 4); // RGBA float
-        glBindTexture(GL_TEXTURE_2D, id_);
-        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_FLOAT, pixels.data());
-        glBindTexture(GL_TEXTURE_2D, 0);
-
-        std::ofstream f(path, std::ios::binary);
-        f << "P6\n"
-          << w << " " << h << "\n255\n";
-        for (int y = h - 1; y >= 0; --y) // OpenGL bottom-up -> top-down
-        {
-            for (int x = 0; x < w; ++x)
-            {
-                int idx = (y * w + x) * 4;
-                auto to_byte = [](float v) -> unsigned char
-                {
-                    return static_cast<unsigned char>(std::clamp(v, 0.0f, 1.0f) * 255.0f + 0.5f);
-                };
-                unsigned char rgb[3] = {to_byte(pixels[idx]), to_byte(pixels[idx + 1]), to_byte(pixels[idx + 2])};
-                f.write(reinterpret_cast<char *>(rgb), 3);
-            }
-        }
     }
 
 } // namespace zk_pbr::gfx

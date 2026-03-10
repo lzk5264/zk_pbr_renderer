@@ -23,7 +23,11 @@ layout(binding = 6) uniform samplerCube u_PrefilteredEnvMap;
 layout(binding = 7) uniform sampler2D u_DFGLUT;
 
 // ===== Uniforms (small scalar params; use UBO if grows) =====
-layout(location = 0) uniform vec4 u_BaseColor = vec4(1.0); // if your compiler dislikes init, set from CPU
+layout(location = 0) uniform vec4 u_BaseColor = vec4(1.0); 
+layout(location = 1) uniform float u_MetallicFactor  = 1.0;  
+layout(location = 2) uniform float u_RoughnessFactor = 1.0;  
+layout(location = 3) uniform vec3 u_EmissiveFactor = vec3(1.0);
+
 
 layout(std140, binding = 0) uniform CameraUBO {
     mat4 u_View;
@@ -66,8 +70,8 @@ SurfaceData buildSurface()
 
     // Metallic / roughness
     vec4  mrSample = texture(u_MetallicRoughnessTex, v_In.uv0);
-    float metallic            = mrSample.b;
-    s.perceptualRoughness     = mrSample.g;
+    float metallic            = mrSample.b * u_MetallicFactor;
+    s.perceptualRoughness     = mrSample.g * u_RoughnessFactor;
 
     // Derived material params
     s.diffuseColor = (1.0 - metallic) * s.baseColor;
@@ -116,7 +120,7 @@ void main()
     SurfaceData s = buildSurface();
 
     float ao      = texture(u_AOTex,        v_In.uv0).r;
-    vec3  emissive = texture(u_EmissiveTex, v_In.uv0).rgb;
+    vec3  emissive = texture(u_EmissiveTex, v_In.uv0).rgb * u_EmissiveFactor;
 
     vec3 color = evaluateIBL(s) * ao + emissive;
     o_Color = vec4(color, 1.0);
