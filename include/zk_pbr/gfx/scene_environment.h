@@ -30,10 +30,14 @@ namespace zk_pbr::gfx
     class SceneEnvironment
     {
     public:
-        // 从等距矩形 HDR 构建完整的 IBL 资源集。
         // 为什么是静态工厂而非构造函数：
         //   - 异常处理，IBL资源加载与计算有一定先后顺序
         // 后续可以实现从其他形式资源导入的类似函数
+
+        /// @brief 从等距矩形 HDR 构建完整的 IBL 资源集
+        /// @param hdr_path 等距矩形贴图路径.
+        /// @param config   IBL 预计算参数配置，一般默认.
+        /// @return SceneEnviroment 对象
         static SceneEnvironment LoadFromHDR(const std::string &hdr_path,
                                             const IBLConfig &config = IBLConfig{});
 

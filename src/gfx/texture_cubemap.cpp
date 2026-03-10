@@ -67,9 +67,7 @@ namespace zk_pbr::gfx
         const char *kIrradianceFS = R"(
             #version 460 core
 
-            in VS_OUT {
-                vec3 uv;
-            } fs_in;
+            in vec3 v_LocalPos;
 
             layout(location = 0) out vec4 o_Color;
             layout(binding = 0) uniform samplerCube u_Cubemap;
@@ -147,7 +145,7 @@ namespace zk_pbr::gfx
                 uvec2 pix = uvec2(gl_FragCoord.xy);
                 uint frame = 0u; // 如果你有时间累积/降噪，就传进来；没有就保持 0
 
-                vec3 N = normalize(fs_in.uv);
+                vec3 N = normalize(v_LocalPos);
                 vec3 B1, B2;
                 GetONB(N, B1, B2);
 

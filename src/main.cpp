@@ -7,8 +7,8 @@
 #include <zk_pbr/gfx/shader.h>
 #include <zk_pbr/gfx/mesh.h>
 
-#include <zk_pbr/gfx/texture2d.h>
-#include <zk_pbr/gfx/texture_cubemap.h>
+#include <zk_pbr/gfx/scene_environment.h>
+#include <zk_pbr/gfx/material.h>
 
 #include <zk_pbr/gfx/camera.h>
 #include <zk_pbr/gfx/camera_controller.h>
@@ -76,11 +76,7 @@ int main()
         std::cout << "  - ESC to exit\n"
                   << std::endl;
 
-        // 加载 Shader
-        zk_pbr::gfx::Shader debug_default_shader(
-            "./shaders/common/debug_default_vs.vert",
-            "./shaders/common/debug_default_fs.frag");
-
+        // 加载 shader
         gfx::Shader postprocess_shader(
             "./shaders/common/postprocess_vs.vert",
             "./shaders/common/postprocess_tonemapping_fs.frag");
@@ -88,6 +84,10 @@ int main()
         gfx::Shader skybox_shader(
             "./shaders/common/skybox_vs.vert",
             "./shaders/common/skybox_fs.frag");
+
+        gfx::Shader pbr_shader(
+            "./shaders/IBL/pbr_shading_vs.vert",
+            "./shaders/IBL/pbr_shading_fs.frag");
 
         // 创建几何体
         auto cube = zk_pbr::gfx::PrimitiveFactory::CreateCube();
@@ -113,7 +113,8 @@ int main()
         camera_ubo.BindToPoint(gfx::ubo_binding::kCamera);
 
         gfx::ObjectUBOData object_data;
-        object_data.model = glm::mat4(1.0f);
+        object_data.model      = glm::mat4(1.0f);
+        object_data.model_inv_t = glm::transpose(glm::inverse(object_data.model));
         zk_pbr::gfx::UniformBuffer object_ubo(sizeof(gfx::ObjectUBOData), GL_DYNAMIC_DRAW);
         object_ubo.BindToPoint(gfx::ubo_binding::kObject);
 
@@ -124,31 +125,13 @@ int main()
         hdr_fbo.AttachRenderbuffer(GL_DEPTH_COMPONENT24);
         hdr_fbo.CheckStatus();
 
-        // === 预处理：将等距矩形 HDR 转换为 cubemap ===
-        const int cubemap_size = 1024;
-        auto env_cubemap = gfx::TextureCubemap::LoadFromEquirectangular(
-            "./resources/textures/hdr_equirect/blue_photo_studio_4k.exr",
-            cubemap_size,
-            gfx::TexturePresets::HDRCubemap());
+        // SceneEnvironment 对象，管理环境贴图以及IBL相关资源的管理与计算
+        gfx::SceneEnvironment se_object =
+            gfx::SceneEnvironment::LoadFromHDR("./resources/textures/hdr_equirect/blue_photo_studio_4k.exr");
 
-        // === 预处理：从环境 cubemap 生成 irradiance map ===
-        // 使用专门的 IrradianceMap 规格（不需要 mipmap）
-        auto irradiance_cubemap = gfx::TextureCubemap::ConvolveIrradiance(
-            env_cubemap,
-            32,                                    // irradiance map 尺寸（32x32 足够）
-            512,                                   // 采样数
-            gfx::TexturePresets::IrradianceMap()); // 使用 Irradiance 专用规格
-
-        // === 预处理：从环境cubemap 生成 prefiltered map ===
-
-        auto prefiltered_env_map = gfx::TextureCubemap::PrefilteredEnvMap(
-            env_cubemap,
-            256,
-            1024,
-            gfx::TexturePresets::PrefilteredEnvMap());
-
-        auto dfg_lut = gfx::Texture2D::ComputeDFG(512, 1024);
-        dfg_lut.SaveToPPM("dfg_lut_ms_debug.ppm");
+        // Material 临时对象，用于测试 Material->shader 管线
+        // 所有贴图为空，Bind() 会自动使用 DefaultTextures 兜底
+        gfx::Material material;
 
         // 时间管理
         float delta_time = 0.0f;
@@ -179,17 +162,20 @@ int main()
             gfx::CameraUBOData camera_data;
             camera_data.view = view;
             camera_data.projection = projection;
+            camera_data.camera_pos_ws = glm::vec4(camera.GetPosition(), 1.0);
             camera_ubo.SetData(&camera_data, sizeof(camera_data));
 
-            // 渲染三角形
-            // debug_default_shader.Use();
-            // object_ubo.SetData(&object_data, sizeof(object_data));
-            // triangle.Draw();
+            // PBR pass（临时用兜底材质，无模型，等 GLB 加载器就位后替换）
+            pbr_shader.Use();
+            se_object.BindIBL();
+            material.Bind();
+            object_ubo.SetData(&object_data, sizeof(object_data));
+            // TODO: mesh.Draw()，等模型加载器接入后替换
 
             // skybox
             glDepthFunc(GL_LEQUAL);
             skybox_shader.Use();
-            zk_pbr::gfx::Shader::BindTextureToUnit(prefiltered_env_map.GetID(), 0, GL_TEXTURE_CUBE_MAP);
+            zk_pbr::gfx::Shader::BindTextureToUnit(se_object.GetEnvCubemap().GetID(), 0, GL_TEXTURE_CUBE_MAP);
             cube.Draw();
             glDepthFunc(GL_LESS);
 

@@ -41,7 +41,8 @@ void main()
 
     v_Out.posWS     = posWS.xyz;
     v_Out.normalWS  = transformNormalWS(a_NormalOS);
-    v_Out.tangentWS = u_Model * a_TangentOS;
+    // NOTE: w 分量存的是 handedness (±1)，不能参与矩阵变换
+    v_Out.tangentWS = vec4(mat3(u_Model) * a_TangentOS.xyz, a_TangentOS.w);
     v_Out.uv0       = a_UV0;
     v_Out.uv1       = a_UV1;
 
