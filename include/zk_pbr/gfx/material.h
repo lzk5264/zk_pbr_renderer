@@ -15,6 +15,7 @@ namespace zk_pbr::gfx
     //   - DefaultMR:  metallic=0, roughness=1
     //
     // 设计意图：即使模型缺失贴图，也保证 shader 采样合法，避免出现未定义结果。
+    // 也因为这个兜底设计，就不设计Material异常相关的内容了
     namespace DefaultTextures
     {
         const std::shared_ptr<Texture2D> &White();      // albedo / ao 回退

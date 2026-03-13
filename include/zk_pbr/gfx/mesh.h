@@ -15,7 +15,7 @@ namespace zk_pbr::gfx
         using std::runtime_error::runtime_error;
     };
 
-    // Mesh 类：封装 VAO/VBO/EBO (RAII)
+    // Mesh 类：封装 VAO/VBO/EBO
     class Mesh
     {
     public:

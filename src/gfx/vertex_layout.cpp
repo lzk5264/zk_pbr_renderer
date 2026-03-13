@@ -90,11 +90,19 @@ namespace zk_pbr::gfx
 
         VertexLayout PBRVertex()
         {
+            // 与 pbr_shading_vs.vert 的 attribute location 严格对应：
+            //   loc 0: vec3 position  (offset  0)
+            //   loc 1: vec3 normal    (offset 12)
+            //   loc 2: vec2 uv0       (offset 24)
+            //   loc 3: vec4 tangent   (offset 32, w = handedness ±1)
+            // 共 12 floats = 48 bytes/vertex。
+            // glTF 的 TEXCOORD_1 (uv1) 当前不采样，暂不纳入顶点布局。
+            constexpr GLsizei kStride = 12 * sizeof(float);
             VertexLayout layout;
-            layout.AddFloat(0, 3, 11 * sizeof(float), 0);                 // position
-            layout.AddFloat(1, 3, 11 * sizeof(float), 3 * sizeof(float)); // normal
-            layout.AddFloat(2, 2, 11 * sizeof(float), 6 * sizeof(float)); // texCoord
-            layout.AddFloat(3, 3, 11 * sizeof(float), 8 * sizeof(float)); // tangent
+            layout.AddFloat(0, 3, kStride, 0);                  // position
+            layout.AddFloat(1, 3, kStride, 3 * sizeof(float));  // normal
+            layout.AddFloat(2, 2, kStride, 6 * sizeof(float));  // uv0
+            layout.AddFloat(3, 4, kStride, 8 * sizeof(float));  // tangent (xyz + handedness w)
             return layout;
         }
 

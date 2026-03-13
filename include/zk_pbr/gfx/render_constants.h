@@ -51,7 +51,10 @@ namespace zk_pbr::gfx
     {
         glm::mat4 view;          // offset 0,   size 64, align 16
         glm::mat4 projection;    // offset 64,  size 64, align 16
-        glm::vec4 camera_pos_ws; // offset 128, size 16, align 16（用 vec4 保证 std140 对齐）
+        glm::vec4 camera_pos_ws; // offset 128, size 16, align 16（xyz = 位置，w = std140 padding，shader 仅读 .xyz）
+
+        // 通过此辅助方法赋值，避免调用侧手动构造 vec4。
+        void SetCameraPos(const glm::vec3 &pos) { camera_pos_ws = glm::vec4(pos, 0.0f); }
     };
     static_assert(sizeof(CameraUBOData) == 144, "CameraUBOData size mismatch (expected 144 bytes for std140)");
 

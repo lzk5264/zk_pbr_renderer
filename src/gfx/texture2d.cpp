@@ -228,7 +228,7 @@ namespace zk_pbr::gfx
     }
 
     Texture2D::Texture2D(int width, int height, const TextureSpec &spec)
-        : width_(width), height_(height)
+        : width_(width), height_(height), spec_(spec)
     {
         glGenTextures(1, &id_);
         if (id_ == 0)
@@ -238,17 +238,55 @@ namespace zk_pbr::gfx
 
         glBindTexture(GL_TEXTURE_2D, id_);
 
-        // 分配存储
-        glTexImage2D(GL_TEXTURE_2D, 0, spec.internal_format,
-                     width, height, 0, spec.format, spec.data_type, nullptr);
+        // 根据 generate_mipmaps 自动计算好完整的 mipmap 层级并一次性分配显存
+        int mip_levels = spec.generate_mipmaps
+                             ? static_cast<int>(std::floor(std::log2(std::max(width, height)))) + 1
+                             : 1;
+
+        glTexStorage2D(GL_TEXTURE_2D, mip_levels, spec.internal_format, width, height);
 
         // 设置参数
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, static_cast<GLint>(spec.wrap));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, static_cast<GLint>(spec.wrap));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(spec.min_filter));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(spec.mag_filter));
+        ApplyParameters();
 
         glBindTexture(GL_TEXTURE_2D, 0);
+    }
+
+    Texture2D Texture2D::LoadFromFile(const std::string &path, const TextureSpec &spec)
+    {
+        // 加载图像数据
+        LDRImageData img = LoadLDRImage(path); // 默认垂直翻转是适合 OpenGL 的
+        if (!img.IsValid())
+        {
+            throw ImageLoadException("Failed to load LDR image: " + path);
+        }
+
+        Texture2D tex(img.width, img.height, spec);
+
+        // 绑定并上传数据
+        glBindTexture(GL_TEXTURE_2D, tex.GetID());
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+        // 根据实际加载的通道数推断格式
+        GLenum format = GL_RGB;
+        if (img.channels == 4)
+            format = GL_RGBA;
+        else if (img.channels == 1)
+            format = GL_RED;
+
+        // 使用 SubImage 更新显存
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, img.width, img.height, format, spec.data_type, img.pixels);
+
+        // 生成 mipmap
+        if (spec.generate_mipmaps)
+        {
+            glGenerateMipmap(GL_TEXTURE_2D);
+        }
+
+        // 恢复状态
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+
+        return tex;
     }
 
     Texture2D::~Texture2D()
@@ -260,7 +298,7 @@ namespace zk_pbr::gfx
     }
 
     Texture2D::Texture2D(Texture2D &&other) noexcept
-        : id_(other.id_), width_(other.width_), height_(other.height_)
+        : id_(other.id_), width_(other.width_), height_(other.height_), spec_(other.spec_)
     {
         other.id_ = 0;
         other.width_ = 0;
@@ -279,6 +317,7 @@ namespace zk_pbr::gfx
             id_ = other.id_;
             width_ = other.width_;
             height_ = other.height_;
+            spec_ = other.spec_;
 
             other.id_ = 0;
             other.width_ = 0;
@@ -312,7 +351,7 @@ namespace zk_pbr::gfx
     Texture2D Texture2D::CreateSolid(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
     {
         Texture2D tex;
-        tex.width_  = 1;
+        tex.width_ = 1;
         tex.height_ = 1;
 
         glGenTextures(1, &tex.id_);
@@ -335,6 +374,15 @@ namespace zk_pbr::gfx
     {
         glActiveTexture(GL_TEXTURE0 + slot);
         glBindTexture(GL_TEXTURE_2D, id_);
+    }
+
+    void Texture2D::ApplyParameters()
+    {
+        // 假设外部已经 bind 了本 texture
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, static_cast<GLint>(spec_.wrap));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, static_cast<GLint>(spec_.wrap));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(spec_.min_filter));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(spec_.mag_filter));
     }
 
 } // namespace zk_pbr::gfx

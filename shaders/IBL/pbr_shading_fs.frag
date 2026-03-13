@@ -6,7 +6,6 @@ in V2F {
     vec3 normalWS;
     vec4 tangentWS;   // xyz = tangent, w = handedness
     vec2 uv0;
-    vec2 uv1;
 } v_In;
 
 // ===== Fragment Outputs =====

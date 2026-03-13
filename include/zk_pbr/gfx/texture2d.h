@@ -6,6 +6,7 @@
 #include <glad/glad.h>
 
 #include <zk_pbr/gfx/texture_parameters.h>
+#include <zk_pbr/gfx/image_loader.h>
 
 namespace zk_pbr::gfx
 {
@@ -19,6 +20,9 @@ namespace zk_pbr::gfx
 
         // 创建空纹理 (用于 FBO 附件)
         Texture2D(int width, int height, const TextureSpec &spec);
+
+        // 从给定文件路径加载 LDR 图像数据（如 .png, .jpg），创建对应的 2D 纹理。
+        static Texture2D LoadFromFile(const std::string &path, const TextureSpec &spec);
 
         ~Texture2D();
 
@@ -49,6 +53,11 @@ namespace zk_pbr::gfx
         GLuint id_ = 0;
         int width_ = 0;
         int height_ = 0;
+        TextureSpec spec_{};
+
+        // 一般用于构造函数，后续可能用于其他改变纹理参数的函数中
+        // 基于 当前持有的 spec, 对texture对象所持有texture资源进行参数设置
+        void ApplyParameters();
     };
 
 } // namespace zk_pbr::gfx

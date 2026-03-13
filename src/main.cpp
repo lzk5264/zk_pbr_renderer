@@ -162,7 +162,7 @@ int main()
             gfx::CameraUBOData camera_data;
             camera_data.view = view;
             camera_data.projection = projection;
-            camera_data.camera_pos_ws = glm::vec4(camera.GetPosition(), 1.0);
+            camera_data.SetCameraPos(camera.GetPosition());
             camera_ubo.SetData(&camera_data, sizeof(camera_data));
 
             // PBR pass（临时用兜底材质，无模型，等 GLB 加载器就位后替换）

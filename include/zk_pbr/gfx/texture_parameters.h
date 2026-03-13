@@ -24,7 +24,8 @@ namespace zk_pbr::gfx
     {
         Repeat = GL_REPEAT,
         ClampToEdge = GL_CLAMP_TO_EDGE,
-        ClampToBorder = GL_CLAMP_TO_BORDER
+        ClampToBorder = GL_CLAMP_TO_BORDER,
+        Mirrored_repeat = GL_MIRRORED_REPEAT
     };
 
     enum class TextureFilter : GLenum
@@ -57,6 +58,34 @@ namespace zk_pbr::gfx
 
     namespace TexturePresets
     {
+
+        // 给 baseColor/emissive 等颜色类型的纹理使用的默认预设
+        inline TextureSpec LDRColorMap()
+        {
+            TextureSpec spec;
+            spec.internal_format = GL_SRGB8_ALPHA8; // 颜色纹理需要启用 sRGB
+            spec.format = GL_RGBA;
+            spec.data_type = GL_UNSIGNED_BYTE;
+            spec.wrap = TextureWrap::Repeat;
+            spec.min_filter = TextureFilter::LinearMipmapLinear;
+            spec.mag_filter = TextureFilter::Linear;
+            spec.generate_mipmaps = true;
+            return spec;
+        }
+
+        inline TextureSpec LDRDataMap()
+        {
+            TextureSpec spec;
+            spec.internal_format = GL_RGBA8; // Data 不用 sRGB 格式
+            spec.format = GL_RGBA;
+            spec.data_type = GL_UNSIGNED_BYTE;
+            spec.wrap = TextureWrap::Repeat;
+            spec.min_filter = TextureFilter::LinearMipmapLinear;
+            spec.mag_filter = TextureFilter::Linear;
+            spec.generate_mipmaps = true;
+            return spec;
+        }
+
         // HDR Framebuffer 颜色附件
         inline TextureSpec HDRRenderTarget()
         {

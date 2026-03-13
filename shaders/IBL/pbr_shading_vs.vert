@@ -1,11 +1,11 @@
 #version 460 core
 
 // ===== Vertex Inputs =====
+// 布局与 layouts::PBRVertex() 严格对应（12 floats/vertex）。
 layout(location = 0) in vec3 a_PositionOS;
-layout(location = 1) in vec3 a_NormalOS;   
-layout(location = 2) in vec2 a_UV0;        
-layout(location = 3) in vec2 a_UV1;
-layout(location = 4) in vec4 a_TangentOS;
+layout(location = 1) in vec3 a_NormalOS;
+layout(location = 2) in vec2 a_UV0;
+layout(location = 3) in vec4 a_TangentOS;  // xyz = tangent, w = handedness (±1)
 
 // ===== Vertex Outputs (to Fragment Shader) =====
 out V2F {
@@ -13,7 +13,6 @@ out V2F {
     vec3 normalWS;
     vec4 tangentWS;
     vec2 uv0;
-    vec2 uv1;
 } v_Out;
 
 
@@ -44,7 +43,6 @@ void main()
     // NOTE: w 分量存的是 handedness (±1)，不能参与矩阵变换
     v_Out.tangentWS = vec4(mat3(u_Model) * a_TangentOS.xyz, a_TangentOS.w);
     v_Out.uv0       = a_UV0;
-    v_Out.uv1       = a_UV1;
 
     gl_Position = u_Proj * u_View * posWS; // standard pipeline
 }
