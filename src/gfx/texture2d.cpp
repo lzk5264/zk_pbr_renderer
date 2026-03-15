@@ -251,10 +251,10 @@ namespace zk_pbr::gfx
         glBindTexture(GL_TEXTURE_2D, 0);
     }
 
-    Texture2D Texture2D::LoadFromFile(const std::string &path, const TextureSpec &spec)
+    Texture2D Texture2D::LoadFromFile(const std::string &path, const TextureSpec &spec, bool flip_vertically)
     {
         // 加载图像数据
-        LDRImageData img = LoadLDRImage(path); // 默认垂直翻转是适合 OpenGL 的
+        LDRImageData img = LoadLDRImage(path, flip_vertically);
         if (!img.IsValid())
         {
             throw ImageLoadException("Failed to load LDR image: " + path);

@@ -441,7 +441,7 @@ namespace zk_pbr::gfx
 
         // 4. 设置采样数并渲染
         irradiance_shader.Use();
-        irradiance_shader.SetInt("u_SampleCount", sample_count);
+        irradiance_shader.SetInt("u_Samplers", sample_count);
 
         RenderToCubemapFaces(irradiance, irradiance_shader, irradiance_size);
 

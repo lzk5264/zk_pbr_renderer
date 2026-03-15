@@ -5,10 +5,11 @@
 
 #include <zk_pbr/core/window.h>
 #include <zk_pbr/gfx/shader.h>
-#include <zk_pbr/gfx/mesh.h>
 
 #include <zk_pbr/gfx/scene_environment.h>
+#include <zk_pbr/gfx/mesh.h>
 #include <zk_pbr/gfx/material.h>
+#include <zk_pbr/gfx/model.h>
 
 #include <zk_pbr/gfx/camera.h>
 #include <zk_pbr/gfx/camera_controller.h>
@@ -113,7 +114,7 @@ int main()
         camera_ubo.BindToPoint(gfx::ubo_binding::kCamera);
 
         gfx::ObjectUBOData object_data;
-        object_data.model      = glm::mat4(1.0f);
+        object_data.model = glm::mat4(1.0f);
         object_data.model_inv_t = glm::transpose(glm::inverse(object_data.model));
         zk_pbr::gfx::UniformBuffer object_ubo(sizeof(gfx::ObjectUBOData), GL_DYNAMIC_DRAW);
         object_ubo.BindToPoint(gfx::ubo_binding::kObject);
@@ -129,9 +130,10 @@ int main()
         gfx::SceneEnvironment se_object =
             gfx::SceneEnvironment::LoadFromHDR("./resources/textures/hdr_equirect/blue_photo_studio_4k.exr");
 
-        // Material 临时对象，用于测试 Material->shader 管线
-        // 所有贴图为空，Bind() 会自动使用 DefaultTextures 兜底
-        gfx::Material material;
+        // 导入模型
+        gfx::Model model = gfx::Model::LoadFromGLTF("./resources/models/DamagedHelmet/glTF/DamagedHelmet.gltf");
+
+        std::vector<gfx::DrawCommand> model_commands = model.GetDrawCommands();
 
         // 时间管理
         float delta_time = 0.0f;
@@ -165,12 +167,16 @@ int main()
             camera_data.SetCameraPos(camera.GetPosition());
             camera_ubo.SetData(&camera_data, sizeof(camera_data));
 
-            // PBR pass（临时用兜底材质，无模型，等 GLB 加载器就位后替换）
             pbr_shader.Use();
             se_object.BindIBL();
-            material.Bind();
-            object_ubo.SetData(&object_data, sizeof(object_data));
-            // TODO: mesh.Draw()，等模型加载器接入后替换
+            for (const auto &command : model_commands)
+            {
+                command.material->Bind();
+                object_data.model = command.model_matrix;
+                object_data.model_inv_t = command.model_inv_t;
+                object_ubo.SetData(&object_data, sizeof(object_data));
+                command.mesh->Draw();
+            }
 
             // skybox
             glDepthFunc(GL_LEQUAL);

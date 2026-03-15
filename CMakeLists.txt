@@ -35,6 +35,7 @@ set(SOURCES
     ${CMAKE_SOURCE_DIR}/src/gfx/framebuffer.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/scene_environment.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/material.cpp
+    ${CMAKE_SOURCE_DIR}/src/gfx/model.cpp
     ${CMAKE_SOURCE_DIR}/src/glad.c
     ${CMAKE_SOURCE_DIR}/third_party/tinyexr/deps/miniz/miniz.c  # tinyexr 依赖
 )

@@ -21,8 +21,9 @@ namespace zk_pbr::gfx
         // 创建空纹理 (用于 FBO 附件)
         Texture2D(int width, int height, const TextureSpec &spec);
 
-        // 从给定文件路径加载 LDR 图像数据（如 .png, .jpg），创建对应的 2D 纹理。
-        static Texture2D LoadFromFile(const std::string &path, const TextureSpec &spec);
+        // 从给定文件路径加载 LDR 图像数据（如 .png, .jpg），创建Texture2D对象
+        // flip_vertically: glTF 纹理应设为 false（UV 原点已在左上角），普通 OpenGL 纹理设为 true
+        static Texture2D LoadFromFile(const std::string &path, const TextureSpec &spec, bool flip_vertically = true);
 
         ~Texture2D();
 
