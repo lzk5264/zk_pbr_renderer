@@ -10,6 +10,7 @@
 
 #include <cstring>
 #include <vector>
+#include <utility>
 
 namespace zk_pbr::gfx
 {
@@ -17,12 +18,11 @@ namespace zk_pbr::gfx
     // ========== HDRImageData 实现 ==========
 
     HDRImageData::HDRImageData(HDRImageData &&other) noexcept
-        : pixels(other.pixels), width(other.width), height(other.height), channels(other.channels)
+        : pixels(std::exchange(other.pixels, nullptr)),
+          width(std::exchange(other.width, 0)),
+          height(std::exchange(other.height, 0)),
+          channels(std::exchange(other.channels, 0))
     {
-        other.pixels = nullptr;
-        other.width = 0;
-        other.height = 0;
-        other.channels = 0;
     }
 
     HDRImageData &HDRImageData::operator=(HDRImageData &&other) noexcept
@@ -34,15 +34,10 @@ namespace zk_pbr::gfx
                 free(pixels);
             }
 
-            pixels = other.pixels;
-            width = other.width;
-            height = other.height;
-            channels = other.channels;
-
-            other.pixels = nullptr;
-            other.width = 0;
-            other.height = 0;
-            other.channels = 0;
+            pixels = std::exchange(other.pixels, nullptr);
+            width = std::exchange(other.width, 0);
+            height = std::exchange(other.height, 0);
+            channels = std::exchange(other.channels, 0);
         }
         return *this;
     }
@@ -58,12 +53,11 @@ namespace zk_pbr::gfx
     // ========== LDRImageData 实现 ==========
 
     LDRImageData::LDRImageData(LDRImageData &&other) noexcept
-        : pixels(other.pixels), width(other.width), height(other.height), channels(other.channels)
+        : pixels(std::exchange(other.pixels, nullptr)),
+          width(std::exchange(other.width, 0)),
+          height(std::exchange(other.height, 0)),
+          channels(std::exchange(other.channels, 0))
     {
-        other.pixels = nullptr;
-        other.width = 0;
-        other.height = 0;
-        other.channels = 0;
     }
 
     LDRImageData &LDRImageData::operator=(LDRImageData &&other) noexcept
@@ -75,15 +69,10 @@ namespace zk_pbr::gfx
                 stbi_image_free(pixels);
             }
 
-            pixels = other.pixels;
-            width = other.width;
-            height = other.height;
-            channels = other.channels;
-
-            other.pixels = nullptr;
-            other.width = 0;
-            other.height = 0;
-            other.channels = 0;
+            pixels = std::exchange(other.pixels, nullptr);
+            width = std::exchange(other.width, 0);
+            height = std::exchange(other.height, 0);
+            channels = std::exchange(other.channels, 0);
         }
         return *this;
     }

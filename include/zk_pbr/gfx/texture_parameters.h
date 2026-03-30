@@ -147,6 +147,34 @@ namespace zk_pbr::gfx
             return spec;
         }
 
+        // Shadow Map 深度纹理
+        inline TextureSpec ShadowMap()
+        {
+            TextureSpec spec;
+            spec.internal_format = GL_DEPTH_COMPONENT24;
+            spec.format = GL_DEPTH_COMPONENT;
+            spec.data_type = GL_FLOAT;
+            spec.wrap = TextureWrap::ClampToBorder;
+            spec.min_filter = TextureFilter::Nearest;
+            spec.mag_filter = TextureFilter::Nearest;
+            spec.generate_mipmaps = false;
+            return spec;
+        }
+
+        // Bloom mip chain (HDR, 不需要 mipmap)
+        inline TextureSpec BloomMip()
+        {
+            TextureSpec spec;
+            spec.internal_format = GL_RGBA16F;
+            spec.format = GL_RGBA;
+            spec.data_type = GL_FLOAT;
+            spec.wrap = TextureWrap::ClampToEdge;
+            spec.min_filter = TextureFilter::Linear;
+            spec.mag_filter = TextureFilter::Linear;
+            spec.generate_mipmaps = false;
+            return spec;
+        }
+
     } // namespace TexturePresets
 
 } // namespace zk_pbr::gfx

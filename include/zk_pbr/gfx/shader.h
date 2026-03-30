@@ -60,7 +60,7 @@ namespace zk_pbr::gfx
     private:
         GLuint program_id_ = 0;
 
-        // Uniform Location 缓存 (避免重复查询，面试加分点)
+        // Uniform Location 缓存
         mutable std::unordered_map<std::string, GLint> uniform_cache_;
 
         GLint GetUniformLocation(const std::string &name) const;

@@ -1,4 +1,5 @@
 #include <zk_pbr/gfx/mesh.h>
+#include <utility>
 
 namespace zk_pbr::gfx
 {
@@ -54,13 +55,13 @@ namespace zk_pbr::gfx
     }
 
     Mesh::Mesh(Mesh &&other) noexcept
-        : vao_(other.vao_), vbo_(other.vbo_), ebo_(other.ebo_),
-          vertex_count_(other.vertex_count_), index_count_(other.index_count_),
-          vertex_stride_(other.vertex_stride_)
+        : vao_(std::exchange(other.vao_, 0)),
+          vbo_(std::exchange(other.vbo_, 0)),
+          ebo_(std::exchange(other.ebo_, 0)),
+          vertex_count_(std::exchange(other.vertex_count_, 0)),
+          index_count_(std::exchange(other.index_count_, 0)),
+          vertex_stride_(std::exchange(other.vertex_stride_, 0))
     {
-        other.vao_ = 0;
-        other.vbo_ = 0;
-        other.ebo_ = 0;
     }
 
     Mesh &Mesh::operator=(Mesh &&other) noexcept
@@ -69,16 +70,12 @@ namespace zk_pbr::gfx
         {
             Cleanup();
 
-            vao_ = other.vao_;
-            vbo_ = other.vbo_;
-            ebo_ = other.ebo_;
-            vertex_count_ = other.vertex_count_;
-            index_count_ = other.index_count_;
-            vertex_stride_ = other.vertex_stride_;
-
-            other.vao_ = 0;
-            other.vbo_ = 0;
-            other.ebo_ = 0;
+            vao_ = std::exchange(other.vao_, 0);
+            vbo_ = std::exchange(other.vbo_, 0);
+            ebo_ = std::exchange(other.ebo_, 0);
+            vertex_count_ = std::exchange(other.vertex_count_, 0);
+            index_count_ = std::exchange(other.index_count_, 0);
+            vertex_stride_ = std::exchange(other.vertex_stride_, 0);
         }
         return *this;
     }

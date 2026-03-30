@@ -7,6 +7,7 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace zk_pbr::gfx
 {
@@ -27,6 +28,16 @@ namespace zk_pbr::gfx
         const char *kBRDFLUTFS = R"(
             #version 460 core
 
+            // IBL DFG LUT（预计算 BRDF 项，用于 split-sum 近似）
+            // 渲染到全屏 quad 上，x 轴 = NdotV，y 轴 = perceptual roughness
+            //
+            // 固定 N = (0,0,1)，各向同性 BRDF 下结果与 N 的具体方向无关
+            // 蒙特卡洛估计量（single-scatter）:
+            //   fc     = (1 - VdotH)^5               — Fresnel Schlick 权重
+            //   weight = Vis * VdotH * NdotL / NdotH — 其中 Vis = G/(4*NdotV*NdotL)
+            //   DFG1   = 4/N * Σ((1 - fc) * weight)
+            //   DFG2   = 4/N * Σ(fc * weight)
+            // o_Color.xy = (DFG1, DFG2)
 
             // ===== Fragment Outputs =====
             layout(location = 0) out vec4 o_Color;
@@ -38,7 +49,7 @@ namespace zk_pbr::gfx
             // ===== Helpers =====
             const float PI = 3.1415926;
 
-            // Hammersley
+            // Helper 函数，被 Hammersley() 调用
             float RadicalInverse_VdC(uint bits) 
             {
                 bits = (bits << 16u) | (bits >> 16u);
@@ -49,12 +60,14 @@ namespace zk_pbr::gfx
                 return float(bits) * 2.3283064365386963e-10; // / 0x100000000
             }
 
+            // Hammersley 序列生成，其中 i 是样本索引，N 是总样本数
             vec2 Hammersley(uint i, uint N)
             {
                 return vec2(float(i)/float(N + 1), RadicalInverse_VdC(i));
             } 
 
-            // N 固定为 (0,0,1)，切线空间即世界空间，无需 ONB 变换
+            // 各向同性BRDF，N 可以随意设置
+            // 所以 N 固定为 (0,0,1)，切线空间即世界空间，无需 ONB 变换
             vec3 ImportanceSampleGGX(vec2 Xi, float a2)
             {
                 float phi = 2.0 * PI * Xi.x;
@@ -63,6 +76,7 @@ namespace zk_pbr::gfx
                 return vec3(sin_theta * cos(phi), sin_theta * sin(phi), cos_theta);
             }
 
+            // Smith GGX Visibility term：Vis = G / (4 * NdotV * NdotL)，已包含 BRDF 分母约分
             float V_SmithGGXCorrelated(float NdotV, float NdotL, float a2) 
             {
                 float GGXV = NdotL * sqrt(NdotV * NdotV * (1.0 - a2) + a2);
@@ -70,6 +84,14 @@ namespace zk_pbr::gfx
                 return 0.5 / (GGXV + GGXL + 1e-7);
             }
 
+            // Fresnel Schlick 权重：(1 - VdotH)^5，用乘法展开代替 pow()
+            float FresnelWeight(float VdotH)
+            {
+                float x = 1.0 - VdotH;
+                float x2 = x * x;
+                float x4 = x2 * x2;
+                return x4 * x;
+            }
 
             void main()
             {
@@ -95,15 +117,15 @@ namespace zk_pbr::gfx
                     float NdotL = L.z;  // N = (0,0,1)
                     if (NdotL > 0.0)
                     {
-                        float NdotH = max(H.z, 0.0);
+                        float NdotH = max(H.z, 0.0); // N = (0,0,1)
                         float VdotH = max(dot(V, H), 0.0);
 
                         float Vis   = V_SmithGGXCorrelated(NdotV, NdotL, a2);
-                        float Fc    = pow(1.0 - VdotH, 5.0);
+                        float fc    = FresnelWeight(VdotH);
                         float weight = Vis * VdotH * NdotL / (NdotH + 1e-7);
 
-                        dfg1 += (1.0 - Fc) * weight;
-                        dfg2 += Fc * weight;
+                        dfg1 += (1.0 - fc) * weight;
+                        dfg2 += fc * weight;
                     }
                 }
 
@@ -117,6 +139,13 @@ namespace zk_pbr::gfx
         const char *kBRDFLUTMSFS = R"(
             #version 460 core
 
+            // IBL DFG LUT — multiscatter 版本（Fdez-Agüera 2019）
+            // 渲染到全屏 quad 上，x 轴 = NdotV，y 轴 = perceptual roughness
+            //
+            // 与 single-scatter 版本的区别在于累加方式：
+            //   DFG1 = 4/N * Σ(fc * weight)    — Fresnel 加权项
+            //   DFG2 = 4/N * Σ(weight)          — 总能量项
+            // pbr_shading_fs 中用 DFG2 补偿多次散射的能量损失
 
             // ===== Fragment Outputs =====
             layout(location = 0) out vec4 o_Color;
@@ -128,7 +157,7 @@ namespace zk_pbr::gfx
             // ===== Helpers =====
             const float PI = 3.1415926;
 
-            // Hammersley
+            // Helper 函数，被 Hammersley() 调用
             float RadicalInverse_VdC(uint bits) 
             {
                 bits = (bits << 16u) | (bits >> 16u);
@@ -139,12 +168,14 @@ namespace zk_pbr::gfx
                 return float(bits) * 2.3283064365386963e-10; // / 0x100000000
             }
 
+            // Hammersley 序列生成，其中 i 是样本索引，N 是总样本数
             vec2 Hammersley(uint i, uint N)
             {
                 return vec2(float(i)/float(N + 1), RadicalInverse_VdC(i));
             } 
 
-            // N 固定为 (0,0,1)，切线空间即世界空间，无需 ONB 变换
+            // 各向同性BRDF，N 可以随意设置
+            // 所以 N 固定为 (0,0,1)，切线空间即世界空间，无需 ONB 变换
             vec3 ImportanceSampleGGX(vec2 Xi, float a2)
             {
                 float phi = 2.0 * PI * Xi.x;
@@ -153,6 +184,7 @@ namespace zk_pbr::gfx
                 return vec3(sin_theta * cos(phi), sin_theta * sin(phi), cos_theta);
             }
 
+            // Smith GGX Visibility term：Vis = G / (4 * NdotV * NdotL)，已包含 BRDF 分母约分
             float V_SmithGGXCorrelated(float NdotV, float NdotL, float a2) 
             {
                 float GGXV = NdotL * sqrt(NdotV * NdotV * (1.0 - a2) + a2);
@@ -160,6 +192,14 @@ namespace zk_pbr::gfx
                 return 0.5 / (GGXV + GGXL + 1e-7);
             }
 
+            // Fresnel Schlick 权重：(1 - VdotH)^5，用乘法展开代替 pow()
+            float FresnelWeight(float VdotH)
+            {
+                float x = 1.0 - VdotH;
+                float x2 = x * x;
+                float x4 = x2 * x2;
+                return x4 * x;
+            }
 
             void main()
             {
@@ -185,14 +225,14 @@ namespace zk_pbr::gfx
                     float NdotL = L.z;  // N = (0,0,1)
                     if (NdotL > 0.0)
                     {
-                        float NdotH = max(H.z, 0.0);
+                        float NdotH = max(H.z, 0.0); // N = (0,0,1)
                         float VdotH = max(dot(V, H), 0.0);
 
                         float Vis   = V_SmithGGXCorrelated(NdotV, NdotL, a2);
-                        float Fc    = pow(1.0 - VdotH, 5.0);
+                        float fc    = FresnelWeight(VdotH);
                         float weight = Vis * VdotH * NdotL / (NdotH + 1e-7);
 
-                        dfg1 += Fc * weight;
+                        dfg1 += fc * weight;
                         dfg2 += weight;
                     }
                 }
@@ -298,11 +338,11 @@ namespace zk_pbr::gfx
     }
 
     Texture2D::Texture2D(Texture2D &&other) noexcept
-        : id_(other.id_), width_(other.width_), height_(other.height_), spec_(other.spec_)
+        : id_(std::exchange(other.id_, 0)),
+          width_(std::exchange(other.width_, 0)),
+          height_(std::exchange(other.height_, 0)),
+          spec_(std::move(other.spec_))
     {
-        other.id_ = 0;
-        other.width_ = 0;
-        other.height_ = 0;
     }
 
     Texture2D &Texture2D::operator=(Texture2D &&other) noexcept
@@ -314,14 +354,10 @@ namespace zk_pbr::gfx
                 glDeleteTextures(1, &id_);
             }
 
-            id_ = other.id_;
-            width_ = other.width_;
-            height_ = other.height_;
-            spec_ = other.spec_;
-
-            other.id_ = 0;
-            other.width_ = 0;
-            other.height_ = 0;
+            id_ = std::exchange(other.id_, 0);
+            width_ = std::exchange(other.width_, 0);
+            height_ = std::exchange(other.height_, 0);
+            spec_ = std::move(other.spec_);
         }
         return *this;
     }

@@ -13,6 +13,7 @@ out V2F {
     vec3 normalWS;
     vec4 tangentWS;
     vec2 uv0;
+    vec4 posLS;       // light-space position (shadow mapping)
 } v_Out;
 
 
@@ -26,6 +27,12 @@ layout(std140, binding = 0) uniform CameraUBO {
 layout(std140, binding = 1) uniform ObjectUBO {
     mat4 u_Model;
     mat4 u_ModelInvT; // inverse-transpose for normals
+};
+
+layout(std140, binding = 2) uniform LightingUBO {
+    vec4 u_LightDir;
+    vec4 u_LightColor;
+    mat4 u_LightSpaceMatrix;
 };
 
 // ===== Helpers =====
@@ -43,6 +50,7 @@ void main()
     // NOTE: w 分量存的是 handedness (±1)，不能参与矩阵变换
     v_Out.tangentWS = vec4(mat3(u_Model) * a_TangentOS.xyz, a_TangentOS.w);
     v_Out.uv0       = a_UV0;
+    v_Out.posLS     = u_LightSpaceMatrix * posWS;
 
     gl_Position = u_Proj * u_View * posWS; // standard pipeline
 }

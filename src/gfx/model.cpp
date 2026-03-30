@@ -193,7 +193,7 @@ namespace zk_pbr::gfx
 
             try
             {
-                // [进阶预留]: 这里未来应该先去一个 std::unordered_map<string, shared_ptr<Texture2D>> texture_cache_ 中查找 path
+                // TODO: 这里未来应该先去一个 std::unordered_map<string, shared_ptr<Texture2D>> texture_cache_ 中查找 path
                 // 如果命中 cache，直接 return cache[path]
 
                 // glTF 纹理不需要翻转（UV 原点已在左上角，符合 OpenGL 约定）

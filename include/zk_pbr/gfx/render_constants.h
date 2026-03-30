@@ -22,6 +22,9 @@ namespace zk_pbr::gfx
         constexpr unsigned int kIrradianceMap = 5;
         constexpr unsigned int kPrefilteredEnvMap = 6;
         constexpr unsigned int kDFGLUT = 7;
+
+        // 阴影级 (Shadow pass 产出，PBR shader 消费)
+        constexpr unsigned int kShadowMap = 8;
     }
 
     // ============================================================================
@@ -38,7 +41,6 @@ namespace zk_pbr::gfx
         constexpr unsigned int kInternal = 15;
     }
 
-    // ============================================================================
     // 相机 UBO 数据结构
     // 对应 shader 中的:
     //   layout(std140, binding = 0) uniform CameraUBO {
@@ -46,7 +48,6 @@ namespace zk_pbr::gfx
     //       mat4 u_Proj;
     //       vec4 u_CameraPosWS;
     //   };
-    // ============================================================================
     struct CameraUBOData
     {
         glm::mat4 view;          // offset 0,   size 64, align 16
@@ -83,5 +84,22 @@ namespace zk_pbr::gfx
         constexpr int kRoughnessFactor = 2; // float u_RoughnessFactor
         constexpr int kEmissiveFactor = 3;  // vec3  u_EmissiveFactor
     }
+
+    // ============================================================================
+    // 光照 UBO 数据结构
+    // 对应 shader 中的:
+    //   layout(std140, binding = 2) uniform LightingUBO {
+    //       vec4  u_LightDir;          // xyz = 指向光源方向, w = padding
+    //       vec4  u_LightColor;        // xyz = 颜色 × 强度, w = padding
+    //       mat4  u_LightSpaceMatrix;  // 光源 VP 矩阵 (shadow mapping)
+    //   };
+    // ============================================================================
+    struct LightingUBOData
+    {
+        glm::vec4 light_dir;          // offset 0,  size 16, align 16
+        glm::vec4 light_color;        // offset 16, size 16, align 16
+        glm::mat4 light_space_matrix; // offset 32, size 64, align 16
+    };
+    static_assert(sizeof(LightingUBOData) == 96, "LightingUBOData size mismatch (expected 96 bytes for std140)");
 
 } // namespace zk_pbr::gfx

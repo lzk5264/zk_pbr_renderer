@@ -17,10 +17,12 @@ layout(location = 0) out vec4 o_Color;
 
 // ===== Resources =====
 layout(binding = 0) uniform sampler2D u_HDRBuffer;
+layout(binding = 1) uniform sampler2D u_BloomTex;
 
 // ===== Uniforms =====
 layout(location = 0) uniform float u_Exposure = 1.0;
 layout(location = 1) uniform float u_Gamma = 2.2;
+layout(location = 2) uniform float u_BloomStrength = 0.04;
 
 // ===== Tone Mapping Algorithms =====
 
@@ -66,6 +68,10 @@ void main()
 {
     // 采样 HDR 颜色
     vec3 hdrColor = texture(u_HDRBuffer, fs_in.texCoord).rgb;
+
+    // 合成 Bloom
+    vec3 bloom = texture(u_BloomTex, fs_in.texCoord).rgb;
+    hdrColor += bloom * u_BloomStrength;
     
     // 应用曝光调整
     hdrColor *= u_Exposure;

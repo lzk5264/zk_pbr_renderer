@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <sstream>
+#include <utility>
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -153,7 +154,6 @@ namespace zk_pbr::gfx
         glLinkProgram(program_id_);
 
         // 5. 链接完成后可以删除 Shader 对象
-        // (这是面试考点：link 后 shader 对象就没用了)
         glDeleteShader(vs);
         glDeleteShader(fs);
 
@@ -181,10 +181,9 @@ namespace zk_pbr::gfx
 
     // ===== 移动构造 =====
     Shader::Shader(Shader &&other) noexcept
-        : program_id_(other.program_id_),
+        : program_id_(std::exchange(other.program_id_, 0)),
           uniform_cache_(std::move(other.uniform_cache_))
     {
-        other.program_id_ = 0;
     }
 
     // ===== 移动赋值 =====
@@ -199,10 +198,8 @@ namespace zk_pbr::gfx
             }
 
             // 接管 other 的资源
-            program_id_ = other.program_id_;
+            program_id_ = std::exchange(other.program_id_, 0);
             uniform_cache_ = std::move(other.uniform_cache_);
-
-            other.program_id_ = 0;
         }
         return *this;
     }
