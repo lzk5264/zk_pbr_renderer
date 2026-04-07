@@ -78,6 +78,7 @@ float D_GGX(float NdotH, float a2)
 }
 
 // Smith GGX Height-Correlated Visibility（已包含 BRDF 分母 4*NdotV*NdotL）
+// 非 sqrt 优化版本
 float V_SmithGGXCorrelated(float NdotV, float NdotL, float a2)
 {
     float GGXV = NdotL * sqrt(NdotV * NdotV * (1.0 - a2) + a2);
