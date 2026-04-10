@@ -105,7 +105,6 @@ int main()
 
         // 创建几何体
         auto cube = zk_pbr::gfx::PrimitiveFactory::CreateCube();
-        auto quad = zk_pbr::gfx::PrimitiveFactory::CreateQuad();
 
         // 创建一个空 VAO 用于后处理全屏绘制（Core Profile 必须要有 VAO 绑定）
         // 使用 RAII 风格管理
